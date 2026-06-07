@@ -1,0 +1,121 @@
+{
+  "version": "2026_world_v1",
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-07T20:09:55.962Z",
+  "jogadores": {
+    "index": {
+      "file": "jogadores/index.json",
+      "version": "2026_world_v1"
+    },
+    "nacionalidades": {
+      "ALE": {
+        "file": "jogadores/ale.json",
+        "version": "2026_world_v1",
+        "total": 432
+      },
+      "BRA": {
+        "file": "jogadores/brasil.json",
+        "version": "2026_world_v1",
+        "total": 480
+      },
+      "ESP": {
+        "file": "jogadores/espanha.json",
+        "version": "2026_world_v1",
+        "total": 480
+      },
+      "ING": {
+        "file": "jogadores/ing.json",
+        "version": "2026_world_v1",
+        "total": 480
+      },
+      "ITA": {
+        "file": "jogadores/italia.json",
+        "version": "2026_world_v1",
+        "total": 480
+      },
+      "POR": {
+        "file": "jogadores/portugal.json",
+        "version": "2026_world_v1",
+        "total": 432
+      }
+    }
+  },
+  "clubes": {
+    "file": "clubes.json",
+    "version": "2026_world_v1",
+    "total": 116
+  },
+  "staff": {
+    "file": "staff.json",
+    "version": "2026_world_v1",
+    "total": 348
+  },
+  "ligas": [
+    {
+      "id": "premier_league",
+      "nome": "Premier League",
+      "pais": "Inglaterra",
+      "temporada": "2024/25",
+      "file": "ligas/premier_league.json",
+      "version": "2026_world_v1"
+    },
+    {
+      "id": "la_liga",
+      "nome": "La Liga",
+      "pais": "Espanha",
+      "temporada": "2024/25",
+      "file": "ligas/la_liga.json",
+      "version": "2026_world_v1"
+    },
+    {
+      "id": "brasileirao",
+      "nome": "Brasileirao",
+      "pais": "Brasil",
+      "temporada": "2024",
+      "file": "ligas/brasileirao.json",
+      "version": "2026_world_v1"
+    },
+    {
+      "id": "bundesliga",
+      "nome": "Bundesliga",
+      "pais": "Alemanha",
+      "temporada": "2024/25",
+      "file": "ligas/bundesliga.json",
+      "version": "2026_world_v1"
+    },
+    {
+      "id": "serie_a",
+      "nome": "Serie A",
+      "pais": "Italia",
+      "temporada": "2024/25",
+      "file": "ligas/serie_a.json",
+      "version": "2026_world_v1"
+    },
+    {
+      "id": "primeira_liga",
+      "nome": "Primeira Liga",
+      "pais": "Portugal",
+      "temporada": "2024/25",
+      "file": "ligas/primeira_liga.json",
+      "version": "2026_world_v1"
+    }
+  ],
+  "copas": [
+    {
+      "id": "copa_brasil",
+      "nome": "Copa do Brasil",
+      "file": "copas/copa_brasil.json",
+      "version": "2026_world_v1"
+    },
+    {
+      "id": "champions_league",
+      "nome": "Champions League",
+      "file": "copas/champions_league.json",
+      "version": "2026_world_v1"
+    }
+  ],
+  "compatibility": {
+    "legacyLeagueFiles": true,
+    "baseStateStores": true
+  }
+}

@@ -1,0 +1,3253 @@
+{
+  "version": "2026_world_v1",
+  "staff": {
+    "coach_arsenal": {
+      "id": "coach_arsenal",
+      "nome": "Treinador Arsenal",
+      "tipo": "treinador",
+      "clubeId": "arsenal",
+      "licenca": "Pro",
+      "reputacao": 84,
+      "salarioSemanal": 29400,
+      "estilo": "equilibrado"
+    },
+    "physio_arsenal": {
+      "id": "physio_arsenal",
+      "nome": "Preparador Arsenal",
+      "tipo": "preparador_fisico",
+      "clubeId": "arsenal",
+      "licenca": "B",
+      "reputacao": 79,
+      "salarioSemanal": 10080
+    },
+    "scout_arsenal": {
+      "id": "scout_arsenal",
+      "nome": "Olheiro Arsenal",
+      "tipo": "olheiro",
+      "clubeId": "arsenal",
+      "licenca": "B",
+      "reputacao": 81,
+      "salarioSemanal": 9240
+    },
+    "coach_aston_villa": {
+      "id": "coach_aston_villa",
+      "nome": "Treinador Aston Villa",
+      "tipo": "treinador",
+      "clubeId": "aston_villa",
+      "licenca": "Pro",
+      "reputacao": 84,
+      "salarioSemanal": 29400,
+      "estilo": "equilibrado"
+    },
+    "physio_aston_villa": {
+      "id": "physio_aston_villa",
+      "nome": "Preparador Aston Villa",
+      "tipo": "preparador_fisico",
+      "clubeId": "aston_villa",
+      "licenca": "B",
+      "reputacao": 79,
+      "salarioSemanal": 10080
+    },
+    "scout_aston_villa": {
+      "id": "scout_aston_villa",
+      "nome": "Olheiro Aston Villa",
+      "tipo": "olheiro",
+      "clubeId": "aston_villa",
+      "licenca": "B",
+      "reputacao": 81,
+      "salarioSemanal": 9240
+    },
+    "coach_bournemouth": {
+      "id": "coach_bournemouth",
+      "nome": "Treinador Bournemouth",
+      "tipo": "treinador",
+      "clubeId": "bournemouth",
+      "licenca": "Pro",
+      "reputacao": 83,
+      "salarioSemanal": 29050,
+      "estilo": "equilibrado"
+    },
+    "physio_bournemouth": {
+      "id": "physio_bournemouth",
+      "nome": "Preparador Bournemouth",
+      "tipo": "preparador_fisico",
+      "clubeId": "bournemouth",
+      "licenca": "B",
+      "reputacao": 78,
+      "salarioSemanal": 9960
+    },
+    "scout_bournemouth": {
+      "id": "scout_bournemouth",
+      "nome": "Olheiro Bournemouth",
+      "tipo": "olheiro",
+      "clubeId": "bournemouth",
+      "licenca": "B",
+      "reputacao": 80,
+      "salarioSemanal": 9130
+    },
+    "coach_brentford": {
+      "id": "coach_brentford",
+      "nome": "Treinador Brentford",
+      "tipo": "treinador",
+      "clubeId": "brentford",
+      "licenca": "Pro",
+      "reputacao": 83,
+      "salarioSemanal": 29050,
+      "estilo": "equilibrado"
+    },
+    "physio_brentford": {
+      "id": "physio_brentford",
+      "nome": "Preparador Brentford",
+      "tipo": "preparador_fisico",
+      "clubeId": "brentford",
+      "licenca": "B",
+      "reputacao": 78,
+      "salarioSemanal": 9960
+    },
+    "scout_brentford": {
+      "id": "scout_brentford",
+      "nome": "Olheiro Brentford",
+      "tipo": "olheiro",
+      "clubeId": "brentford",
+      "licenca": "B",
+      "reputacao": 80,
+      "salarioSemanal": 9130
+    },
+    "coach_brighton": {
+      "id": "coach_brighton",
+      "nome": "Treinador Brighton",
+      "tipo": "treinador",
+      "clubeId": "brighton",
+      "licenca": "Pro",
+      "reputacao": 82,
+      "salarioSemanal": 28700,
+      "estilo": "equilibrado"
+    },
+    "physio_brighton": {
+      "id": "physio_brighton",
+      "nome": "Preparador Brighton",
+      "tipo": "preparador_fisico",
+      "clubeId": "brighton",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 9840
+    },
+    "scout_brighton": {
+      "id": "scout_brighton",
+      "nome": "Olheiro Brighton",
+      "tipo": "olheiro",
+      "clubeId": "brighton",
+      "licenca": "B",
+      "reputacao": 79,
+      "salarioSemanal": 9020
+    },
+    "coach_chelsea": {
+      "id": "coach_chelsea",
+      "nome": "Treinador Chelsea",
+      "tipo": "treinador",
+      "clubeId": "chelsea",
+      "licenca": "Pro",
+      "reputacao": 82,
+      "salarioSemanal": 28700,
+      "estilo": "equilibrado"
+    },
+    "physio_chelsea": {
+      "id": "physio_chelsea",
+      "nome": "Preparador Chelsea",
+      "tipo": "preparador_fisico",
+      "clubeId": "chelsea",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 9840
+    },
+    "scout_chelsea": {
+      "id": "scout_chelsea",
+      "nome": "Olheiro Chelsea",
+      "tipo": "olheiro",
+      "clubeId": "chelsea",
+      "licenca": "B",
+      "reputacao": 79,
+      "salarioSemanal": 9020
+    },
+    "coach_crystal_palace": {
+      "id": "coach_crystal_palace",
+      "nome": "Treinador Crystal Palace",
+      "tipo": "treinador",
+      "clubeId": "crystal_palace",
+      "licenca": "A",
+      "reputacao": 81,
+      "salarioSemanal": 28350,
+      "estilo": "equilibrado"
+    },
+    "physio_crystal_palace": {
+      "id": "physio_crystal_palace",
+      "nome": "Preparador Crystal Palace",
+      "tipo": "preparador_fisico",
+      "clubeId": "crystal_palace",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 9720
+    },
+    "scout_crystal_palace": {
+      "id": "scout_crystal_palace",
+      "nome": "Olheiro Crystal Palace",
+      "tipo": "olheiro",
+      "clubeId": "crystal_palace",
+      "licenca": "B",
+      "reputacao": 78,
+      "salarioSemanal": 8910
+    },
+    "coach_everton": {
+      "id": "coach_everton",
+      "nome": "Treinador Everton",
+      "tipo": "treinador",
+      "clubeId": "everton",
+      "licenca": "A",
+      "reputacao": 81,
+      "salarioSemanal": 28350,
+      "estilo": "equilibrado"
+    },
+    "physio_everton": {
+      "id": "physio_everton",
+      "nome": "Preparador Everton",
+      "tipo": "preparador_fisico",
+      "clubeId": "everton",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 9720
+    },
+    "scout_everton": {
+      "id": "scout_everton",
+      "nome": "Olheiro Everton",
+      "tipo": "olheiro",
+      "clubeId": "everton",
+      "licenca": "B",
+      "reputacao": 78,
+      "salarioSemanal": 8910
+    },
+    "coach_fulham": {
+      "id": "coach_fulham",
+      "nome": "Treinador Fulham",
+      "tipo": "treinador",
+      "clubeId": "fulham",
+      "licenca": "A",
+      "reputacao": 80,
+      "salarioSemanal": 28000,
+      "estilo": "equilibrado"
+    },
+    "physio_fulham": {
+      "id": "physio_fulham",
+      "nome": "Preparador Fulham",
+      "tipo": "preparador_fisico",
+      "clubeId": "fulham",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 9600
+    },
+    "scout_fulham": {
+      "id": "scout_fulham",
+      "nome": "Olheiro Fulham",
+      "tipo": "olheiro",
+      "clubeId": "fulham",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 8800
+    },
+    "coach_ipswich_town": {
+      "id": "coach_ipswich_town",
+      "nome": "Treinador Ipswich Town",
+      "tipo": "treinador",
+      "clubeId": "ipswich_town",
+      "licenca": "A",
+      "reputacao": 80,
+      "salarioSemanal": 28000,
+      "estilo": "equilibrado"
+    },
+    "physio_ipswich_town": {
+      "id": "physio_ipswich_town",
+      "nome": "Preparador Ipswich Town",
+      "tipo": "preparador_fisico",
+      "clubeId": "ipswich_town",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 9600
+    },
+    "scout_ipswich_town": {
+      "id": "scout_ipswich_town",
+      "nome": "Olheiro Ipswich Town",
+      "tipo": "olheiro",
+      "clubeId": "ipswich_town",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 8800
+    },
+    "coach_leicester_city": {
+      "id": "coach_leicester_city",
+      "nome": "Treinador Leicester City",
+      "tipo": "treinador",
+      "clubeId": "leicester_city",
+      "licenca": "A",
+      "reputacao": 79,
+      "salarioSemanal": 27650,
+      "estilo": "equilibrado"
+    },
+    "physio_leicester_city": {
+      "id": "physio_leicester_city",
+      "nome": "Preparador Leicester City",
+      "tipo": "preparador_fisico",
+      "clubeId": "leicester_city",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 9480
+    },
+    "scout_leicester_city": {
+      "id": "scout_leicester_city",
+      "nome": "Olheiro Leicester City",
+      "tipo": "olheiro",
+      "clubeId": "leicester_city",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 8690
+    },
+    "coach_liverpool": {
+      "id": "coach_liverpool",
+      "nome": "Treinador Liverpool",
+      "tipo": "treinador",
+      "clubeId": "liverpool",
+      "licenca": "A",
+      "reputacao": 79,
+      "salarioSemanal": 27650,
+      "estilo": "equilibrado"
+    },
+    "physio_liverpool": {
+      "id": "physio_liverpool",
+      "nome": "Preparador Liverpool",
+      "tipo": "preparador_fisico",
+      "clubeId": "liverpool",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 9480
+    },
+    "scout_liverpool": {
+      "id": "scout_liverpool",
+      "nome": "Olheiro Liverpool",
+      "tipo": "olheiro",
+      "clubeId": "liverpool",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 8690
+    },
+    "coach_man_city": {
+      "id": "coach_man_city",
+      "nome": "Treinador Man City",
+      "tipo": "treinador",
+      "clubeId": "man_city",
+      "licenca": "A",
+      "reputacao": 78,
+      "salarioSemanal": 27300,
+      "estilo": "equilibrado"
+    },
+    "physio_man_city": {
+      "id": "physio_man_city",
+      "nome": "Preparador Man City",
+      "tipo": "preparador_fisico",
+      "clubeId": "man_city",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 9360
+    },
+    "scout_man_city": {
+      "id": "scout_man_city",
+      "nome": "Olheiro Man City",
+      "tipo": "olheiro",
+      "clubeId": "man_city",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 8580
+    },
+    "coach_man_utd": {
+      "id": "coach_man_utd",
+      "nome": "Treinador Man Utd",
+      "tipo": "treinador",
+      "clubeId": "man_utd",
+      "licenca": "A",
+      "reputacao": 78,
+      "salarioSemanal": 27300,
+      "estilo": "equilibrado"
+    },
+    "physio_man_utd": {
+      "id": "physio_man_utd",
+      "nome": "Preparador Man Utd",
+      "tipo": "preparador_fisico",
+      "clubeId": "man_utd",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 9360
+    },
+    "scout_man_utd": {
+      "id": "scout_man_utd",
+      "nome": "Olheiro Man Utd",
+      "tipo": "olheiro",
+      "clubeId": "man_utd",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 8580
+    },
+    "coach_newcastle": {
+      "id": "coach_newcastle",
+      "nome": "Treinador Newcastle",
+      "tipo": "treinador",
+      "clubeId": "newcastle",
+      "licenca": "A",
+      "reputacao": 77,
+      "salarioSemanal": 26950,
+      "estilo": "equilibrado"
+    },
+    "physio_newcastle": {
+      "id": "physio_newcastle",
+      "nome": "Preparador Newcastle",
+      "tipo": "preparador_fisico",
+      "clubeId": "newcastle",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 9240
+    },
+    "scout_newcastle": {
+      "id": "scout_newcastle",
+      "nome": "Olheiro Newcastle",
+      "tipo": "olheiro",
+      "clubeId": "newcastle",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 8470
+    },
+    "coach_nottingham_forest": {
+      "id": "coach_nottingham_forest",
+      "nome": "Treinador Nottingham Forest",
+      "tipo": "treinador",
+      "clubeId": "nottingham_forest",
+      "licenca": "A",
+      "reputacao": 77,
+      "salarioSemanal": 26950,
+      "estilo": "equilibrado"
+    },
+    "physio_nottingham_forest": {
+      "id": "physio_nottingham_forest",
+      "nome": "Preparador Nottingham Forest",
+      "tipo": "preparador_fisico",
+      "clubeId": "nottingham_forest",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 9240
+    },
+    "scout_nottingham_forest": {
+      "id": "scout_nottingham_forest",
+      "nome": "Olheiro Nottingham Forest",
+      "tipo": "olheiro",
+      "clubeId": "nottingham_forest",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 8470
+    },
+    "coach_southampton": {
+      "id": "coach_southampton",
+      "nome": "Treinador Southampton",
+      "tipo": "treinador",
+      "clubeId": "southampton",
+      "licenca": "A",
+      "reputacao": 76,
+      "salarioSemanal": 26600,
+      "estilo": "equilibrado"
+    },
+    "physio_southampton": {
+      "id": "physio_southampton",
+      "nome": "Preparador Southampton",
+      "tipo": "preparador_fisico",
+      "clubeId": "southampton",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 9120
+    },
+    "scout_southampton": {
+      "id": "scout_southampton",
+      "nome": "Olheiro Southampton",
+      "tipo": "olheiro",
+      "clubeId": "southampton",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 8360
+    },
+    "coach_tottenham": {
+      "id": "coach_tottenham",
+      "nome": "Treinador Tottenham",
+      "tipo": "treinador",
+      "clubeId": "tottenham",
+      "licenca": "A",
+      "reputacao": 76,
+      "salarioSemanal": 26600,
+      "estilo": "equilibrado"
+    },
+    "physio_tottenham": {
+      "id": "physio_tottenham",
+      "nome": "Preparador Tottenham",
+      "tipo": "preparador_fisico",
+      "clubeId": "tottenham",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 9120
+    },
+    "scout_tottenham": {
+      "id": "scout_tottenham",
+      "nome": "Olheiro Tottenham",
+      "tipo": "olheiro",
+      "clubeId": "tottenham",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 8360
+    },
+    "coach_west_ham": {
+      "id": "coach_west_ham",
+      "nome": "Treinador West Ham",
+      "tipo": "treinador",
+      "clubeId": "west_ham",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 26250,
+      "estilo": "equilibrado"
+    },
+    "physio_west_ham": {
+      "id": "physio_west_ham",
+      "nome": "Preparador West Ham",
+      "tipo": "preparador_fisico",
+      "clubeId": "west_ham",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 9000
+    },
+    "scout_west_ham": {
+      "id": "scout_west_ham",
+      "nome": "Olheiro West Ham",
+      "tipo": "olheiro",
+      "clubeId": "west_ham",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 8250
+    },
+    "coach_wolves": {
+      "id": "coach_wolves",
+      "nome": "Treinador Wolves",
+      "tipo": "treinador",
+      "clubeId": "wolves",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 26250,
+      "estilo": "equilibrado"
+    },
+    "physio_wolves": {
+      "id": "physio_wolves",
+      "nome": "Preparador Wolves",
+      "tipo": "preparador_fisico",
+      "clubeId": "wolves",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 9000
+    },
+    "scout_wolves": {
+      "id": "scout_wolves",
+      "nome": "Olheiro Wolves",
+      "tipo": "olheiro",
+      "clubeId": "wolves",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 8250
+    },
+    "coach_alaves": {
+      "id": "coach_alaves",
+      "nome": "Treinador Alaves",
+      "tipo": "treinador",
+      "clubeId": "alaves",
+      "licenca": "Pro",
+      "reputacao": 85,
+      "salarioSemanal": 29750,
+      "estilo": "equilibrado"
+    },
+    "physio_alaves": {
+      "id": "physio_alaves",
+      "nome": "Preparador Alaves",
+      "tipo": "preparador_fisico",
+      "clubeId": "alaves",
+      "licenca": "B",
+      "reputacao": 80,
+      "salarioSemanal": 10200
+    },
+    "scout_alaves": {
+      "id": "scout_alaves",
+      "nome": "Olheiro Alaves",
+      "tipo": "olheiro",
+      "clubeId": "alaves",
+      "licenca": "B",
+      "reputacao": 82,
+      "salarioSemanal": 9350
+    },
+    "coach_athletic_club": {
+      "id": "coach_athletic_club",
+      "nome": "Treinador Athletic Club",
+      "tipo": "treinador",
+      "clubeId": "athletic_club",
+      "licenca": "Pro",
+      "reputacao": 85,
+      "salarioSemanal": 29750,
+      "estilo": "equilibrado"
+    },
+    "physio_athletic_club": {
+      "id": "physio_athletic_club",
+      "nome": "Preparador Athletic Club",
+      "tipo": "preparador_fisico",
+      "clubeId": "athletic_club",
+      "licenca": "B",
+      "reputacao": 80,
+      "salarioSemanal": 10200
+    },
+    "scout_athletic_club": {
+      "id": "scout_athletic_club",
+      "nome": "Olheiro Athletic Club",
+      "tipo": "olheiro",
+      "clubeId": "athletic_club",
+      "licenca": "B",
+      "reputacao": 82,
+      "salarioSemanal": 9350
+    },
+    "coach_atletico_madrid": {
+      "id": "coach_atletico_madrid",
+      "nome": "Treinador Atletico Madrid",
+      "tipo": "treinador",
+      "clubeId": "atletico_madrid",
+      "licenca": "Pro",
+      "reputacao": 84,
+      "salarioSemanal": 29400,
+      "estilo": "equilibrado"
+    },
+    "physio_atletico_madrid": {
+      "id": "physio_atletico_madrid",
+      "nome": "Preparador Atletico Madrid",
+      "tipo": "preparador_fisico",
+      "clubeId": "atletico_madrid",
+      "licenca": "B",
+      "reputacao": 79,
+      "salarioSemanal": 10080
+    },
+    "scout_atletico_madrid": {
+      "id": "scout_atletico_madrid",
+      "nome": "Olheiro Atletico Madrid",
+      "tipo": "olheiro",
+      "clubeId": "atletico_madrid",
+      "licenca": "B",
+      "reputacao": 81,
+      "salarioSemanal": 9240
+    },
+    "coach_barcelona": {
+      "id": "coach_barcelona",
+      "nome": "Treinador Barcelona",
+      "tipo": "treinador",
+      "clubeId": "barcelona",
+      "licenca": "Pro",
+      "reputacao": 84,
+      "salarioSemanal": 29400,
+      "estilo": "equilibrado"
+    },
+    "physio_barcelona": {
+      "id": "physio_barcelona",
+      "nome": "Preparador Barcelona",
+      "tipo": "preparador_fisico",
+      "clubeId": "barcelona",
+      "licenca": "B",
+      "reputacao": 79,
+      "salarioSemanal": 10080
+    },
+    "scout_barcelona": {
+      "id": "scout_barcelona",
+      "nome": "Olheiro Barcelona",
+      "tipo": "olheiro",
+      "clubeId": "barcelona",
+      "licenca": "B",
+      "reputacao": 81,
+      "salarioSemanal": 9240
+    },
+    "coach_celta_vigo": {
+      "id": "coach_celta_vigo",
+      "nome": "Treinador Celta Vigo",
+      "tipo": "treinador",
+      "clubeId": "celta_vigo",
+      "licenca": "Pro",
+      "reputacao": 83,
+      "salarioSemanal": 29050,
+      "estilo": "equilibrado"
+    },
+    "physio_celta_vigo": {
+      "id": "physio_celta_vigo",
+      "nome": "Preparador Celta Vigo",
+      "tipo": "preparador_fisico",
+      "clubeId": "celta_vigo",
+      "licenca": "B",
+      "reputacao": 78,
+      "salarioSemanal": 9960
+    },
+    "scout_celta_vigo": {
+      "id": "scout_celta_vigo",
+      "nome": "Olheiro Celta Vigo",
+      "tipo": "olheiro",
+      "clubeId": "celta_vigo",
+      "licenca": "B",
+      "reputacao": 80,
+      "salarioSemanal": 9130
+    },
+    "coach_espanyol": {
+      "id": "coach_espanyol",
+      "nome": "Treinador Espanyol",
+      "tipo": "treinador",
+      "clubeId": "espanyol",
+      "licenca": "Pro",
+      "reputacao": 83,
+      "salarioSemanal": 29050,
+      "estilo": "equilibrado"
+    },
+    "physio_espanyol": {
+      "id": "physio_espanyol",
+      "nome": "Preparador Espanyol",
+      "tipo": "preparador_fisico",
+      "clubeId": "espanyol",
+      "licenca": "B",
+      "reputacao": 78,
+      "salarioSemanal": 9960
+    },
+    "scout_espanyol": {
+      "id": "scout_espanyol",
+      "nome": "Olheiro Espanyol",
+      "tipo": "olheiro",
+      "clubeId": "espanyol",
+      "licenca": "B",
+      "reputacao": 80,
+      "salarioSemanal": 9130
+    },
+    "coach_getafe": {
+      "id": "coach_getafe",
+      "nome": "Treinador Getafe",
+      "tipo": "treinador",
+      "clubeId": "getafe",
+      "licenca": "Pro",
+      "reputacao": 82,
+      "salarioSemanal": 28700,
+      "estilo": "equilibrado"
+    },
+    "physio_getafe": {
+      "id": "physio_getafe",
+      "nome": "Preparador Getafe",
+      "tipo": "preparador_fisico",
+      "clubeId": "getafe",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 9840
+    },
+    "scout_getafe": {
+      "id": "scout_getafe",
+      "nome": "Olheiro Getafe",
+      "tipo": "olheiro",
+      "clubeId": "getafe",
+      "licenca": "B",
+      "reputacao": 79,
+      "salarioSemanal": 9020
+    },
+    "coach_girona": {
+      "id": "coach_girona",
+      "nome": "Treinador Girona",
+      "tipo": "treinador",
+      "clubeId": "girona",
+      "licenca": "Pro",
+      "reputacao": 82,
+      "salarioSemanal": 28700,
+      "estilo": "equilibrado"
+    },
+    "physio_girona": {
+      "id": "physio_girona",
+      "nome": "Preparador Girona",
+      "tipo": "preparador_fisico",
+      "clubeId": "girona",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 9840
+    },
+    "scout_girona": {
+      "id": "scout_girona",
+      "nome": "Olheiro Girona",
+      "tipo": "olheiro",
+      "clubeId": "girona",
+      "licenca": "B",
+      "reputacao": 79,
+      "salarioSemanal": 9020
+    },
+    "coach_las_palmas": {
+      "id": "coach_las_palmas",
+      "nome": "Treinador Las Palmas",
+      "tipo": "treinador",
+      "clubeId": "las_palmas",
+      "licenca": "A",
+      "reputacao": 81,
+      "salarioSemanal": 28350,
+      "estilo": "equilibrado"
+    },
+    "physio_las_palmas": {
+      "id": "physio_las_palmas",
+      "nome": "Preparador Las Palmas",
+      "tipo": "preparador_fisico",
+      "clubeId": "las_palmas",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 9720
+    },
+    "scout_las_palmas": {
+      "id": "scout_las_palmas",
+      "nome": "Olheiro Las Palmas",
+      "tipo": "olheiro",
+      "clubeId": "las_palmas",
+      "licenca": "B",
+      "reputacao": 78,
+      "salarioSemanal": 8910
+    },
+    "coach_leganes": {
+      "id": "coach_leganes",
+      "nome": "Treinador Leganes",
+      "tipo": "treinador",
+      "clubeId": "leganes",
+      "licenca": "A",
+      "reputacao": 81,
+      "salarioSemanal": 28350,
+      "estilo": "equilibrado"
+    },
+    "physio_leganes": {
+      "id": "physio_leganes",
+      "nome": "Preparador Leganes",
+      "tipo": "preparador_fisico",
+      "clubeId": "leganes",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 9720
+    },
+    "scout_leganes": {
+      "id": "scout_leganes",
+      "nome": "Olheiro Leganes",
+      "tipo": "olheiro",
+      "clubeId": "leganes",
+      "licenca": "B",
+      "reputacao": 78,
+      "salarioSemanal": 8910
+    },
+    "coach_mallorca": {
+      "id": "coach_mallorca",
+      "nome": "Treinador Mallorca",
+      "tipo": "treinador",
+      "clubeId": "mallorca",
+      "licenca": "A",
+      "reputacao": 80,
+      "salarioSemanal": 28000,
+      "estilo": "equilibrado"
+    },
+    "physio_mallorca": {
+      "id": "physio_mallorca",
+      "nome": "Preparador Mallorca",
+      "tipo": "preparador_fisico",
+      "clubeId": "mallorca",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 9600
+    },
+    "scout_mallorca": {
+      "id": "scout_mallorca",
+      "nome": "Olheiro Mallorca",
+      "tipo": "olheiro",
+      "clubeId": "mallorca",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 8800
+    },
+    "coach_osasuna": {
+      "id": "coach_osasuna",
+      "nome": "Treinador Osasuna",
+      "tipo": "treinador",
+      "clubeId": "osasuna",
+      "licenca": "A",
+      "reputacao": 80,
+      "salarioSemanal": 28000,
+      "estilo": "equilibrado"
+    },
+    "physio_osasuna": {
+      "id": "physio_osasuna",
+      "nome": "Preparador Osasuna",
+      "tipo": "preparador_fisico",
+      "clubeId": "osasuna",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 9600
+    },
+    "scout_osasuna": {
+      "id": "scout_osasuna",
+      "nome": "Olheiro Osasuna",
+      "tipo": "olheiro",
+      "clubeId": "osasuna",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 8800
+    },
+    "coach_rayo_vallecano": {
+      "id": "coach_rayo_vallecano",
+      "nome": "Treinador Rayo Vallecano",
+      "tipo": "treinador",
+      "clubeId": "rayo_vallecano",
+      "licenca": "A",
+      "reputacao": 79,
+      "salarioSemanal": 27650,
+      "estilo": "equilibrado"
+    },
+    "physio_rayo_vallecano": {
+      "id": "physio_rayo_vallecano",
+      "nome": "Preparador Rayo Vallecano",
+      "tipo": "preparador_fisico",
+      "clubeId": "rayo_vallecano",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 9480
+    },
+    "scout_rayo_vallecano": {
+      "id": "scout_rayo_vallecano",
+      "nome": "Olheiro Rayo Vallecano",
+      "tipo": "olheiro",
+      "clubeId": "rayo_vallecano",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 8690
+    },
+    "coach_real_betis": {
+      "id": "coach_real_betis",
+      "nome": "Treinador Real Betis",
+      "tipo": "treinador",
+      "clubeId": "real_betis",
+      "licenca": "A",
+      "reputacao": 79,
+      "salarioSemanal": 27650,
+      "estilo": "equilibrado"
+    },
+    "physio_real_betis": {
+      "id": "physio_real_betis",
+      "nome": "Preparador Real Betis",
+      "tipo": "preparador_fisico",
+      "clubeId": "real_betis",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 9480
+    },
+    "scout_real_betis": {
+      "id": "scout_real_betis",
+      "nome": "Olheiro Real Betis",
+      "tipo": "olheiro",
+      "clubeId": "real_betis",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 8690
+    },
+    "coach_real_madrid": {
+      "id": "coach_real_madrid",
+      "nome": "Treinador Real Madrid",
+      "tipo": "treinador",
+      "clubeId": "real_madrid",
+      "licenca": "A",
+      "reputacao": 78,
+      "salarioSemanal": 27300,
+      "estilo": "equilibrado"
+    },
+    "physio_real_madrid": {
+      "id": "physio_real_madrid",
+      "nome": "Preparador Real Madrid",
+      "tipo": "preparador_fisico",
+      "clubeId": "real_madrid",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 9360
+    },
+    "scout_real_madrid": {
+      "id": "scout_real_madrid",
+      "nome": "Olheiro Real Madrid",
+      "tipo": "olheiro",
+      "clubeId": "real_madrid",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 8580
+    },
+    "coach_real_sociedad": {
+      "id": "coach_real_sociedad",
+      "nome": "Treinador Real Sociedad",
+      "tipo": "treinador",
+      "clubeId": "real_sociedad",
+      "licenca": "A",
+      "reputacao": 78,
+      "salarioSemanal": 27300,
+      "estilo": "equilibrado"
+    },
+    "physio_real_sociedad": {
+      "id": "physio_real_sociedad",
+      "nome": "Preparador Real Sociedad",
+      "tipo": "preparador_fisico",
+      "clubeId": "real_sociedad",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 9360
+    },
+    "scout_real_sociedad": {
+      "id": "scout_real_sociedad",
+      "nome": "Olheiro Real Sociedad",
+      "tipo": "olheiro",
+      "clubeId": "real_sociedad",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 8580
+    },
+    "coach_sevilla": {
+      "id": "coach_sevilla",
+      "nome": "Treinador Sevilla",
+      "tipo": "treinador",
+      "clubeId": "sevilla",
+      "licenca": "A",
+      "reputacao": 77,
+      "salarioSemanal": 26950,
+      "estilo": "equilibrado"
+    },
+    "physio_sevilla": {
+      "id": "physio_sevilla",
+      "nome": "Preparador Sevilla",
+      "tipo": "preparador_fisico",
+      "clubeId": "sevilla",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 9240
+    },
+    "scout_sevilla": {
+      "id": "scout_sevilla",
+      "nome": "Olheiro Sevilla",
+      "tipo": "olheiro",
+      "clubeId": "sevilla",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 8470
+    },
+    "coach_valencia": {
+      "id": "coach_valencia",
+      "nome": "Treinador Valencia",
+      "tipo": "treinador",
+      "clubeId": "valencia",
+      "licenca": "A",
+      "reputacao": 77,
+      "salarioSemanal": 26950,
+      "estilo": "equilibrado"
+    },
+    "physio_valencia": {
+      "id": "physio_valencia",
+      "nome": "Preparador Valencia",
+      "tipo": "preparador_fisico",
+      "clubeId": "valencia",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 9240
+    },
+    "scout_valencia": {
+      "id": "scout_valencia",
+      "nome": "Olheiro Valencia",
+      "tipo": "olheiro",
+      "clubeId": "valencia",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 8470
+    },
+    "coach_valladolid": {
+      "id": "coach_valladolid",
+      "nome": "Treinador Valladolid",
+      "tipo": "treinador",
+      "clubeId": "valladolid",
+      "licenca": "A",
+      "reputacao": 76,
+      "salarioSemanal": 26600,
+      "estilo": "equilibrado"
+    },
+    "physio_valladolid": {
+      "id": "physio_valladolid",
+      "nome": "Preparador Valladolid",
+      "tipo": "preparador_fisico",
+      "clubeId": "valladolid",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 9120
+    },
+    "scout_valladolid": {
+      "id": "scout_valladolid",
+      "nome": "Olheiro Valladolid",
+      "tipo": "olheiro",
+      "clubeId": "valladolid",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 8360
+    },
+    "coach_villarreal": {
+      "id": "coach_villarreal",
+      "nome": "Treinador Villarreal",
+      "tipo": "treinador",
+      "clubeId": "villarreal",
+      "licenca": "A",
+      "reputacao": 76,
+      "salarioSemanal": 26600,
+      "estilo": "equilibrado"
+    },
+    "physio_villarreal": {
+      "id": "physio_villarreal",
+      "nome": "Preparador Villarreal",
+      "tipo": "preparador_fisico",
+      "clubeId": "villarreal",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 9120
+    },
+    "scout_villarreal": {
+      "id": "scout_villarreal",
+      "nome": "Olheiro Villarreal",
+      "tipo": "olheiro",
+      "clubeId": "villarreal",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 8360
+    },
+    "coach_atletico_go": {
+      "id": "coach_atletico_go",
+      "nome": "Treinador Atletico-GO",
+      "tipo": "treinador",
+      "clubeId": "atletico_go",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 25900,
+      "estilo": "equilibrado"
+    },
+    "physio_atletico_go": {
+      "id": "physio_atletico_go",
+      "nome": "Preparador Atletico-GO",
+      "tipo": "preparador_fisico",
+      "clubeId": "atletico_go",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 8880
+    },
+    "scout_atletico_go": {
+      "id": "scout_atletico_go",
+      "nome": "Olheiro Atletico-GO",
+      "tipo": "olheiro",
+      "clubeId": "atletico_go",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 8140
+    },
+    "coach_atletico_mg": {
+      "id": "coach_atletico_mg",
+      "nome": "Treinador Atletico-MG",
+      "tipo": "treinador",
+      "clubeId": "atletico_mg",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 25900,
+      "estilo": "equilibrado"
+    },
+    "physio_atletico_mg": {
+      "id": "physio_atletico_mg",
+      "nome": "Preparador Atletico-MG",
+      "tipo": "preparador_fisico",
+      "clubeId": "atletico_mg",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 8880
+    },
+    "scout_atletico_mg": {
+      "id": "scout_atletico_mg",
+      "nome": "Olheiro Atletico-MG",
+      "tipo": "olheiro",
+      "clubeId": "atletico_mg",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 8140
+    },
+    "coach_athletico_pr": {
+      "id": "coach_athletico_pr",
+      "nome": "Treinador Athletico-PR",
+      "tipo": "treinador",
+      "clubeId": "athletico_pr",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 25550,
+      "estilo": "equilibrado"
+    },
+    "physio_athletico_pr": {
+      "id": "physio_athletico_pr",
+      "nome": "Preparador Athletico-PR",
+      "tipo": "preparador_fisico",
+      "clubeId": "athletico_pr",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 8760
+    },
+    "scout_athletico_pr": {
+      "id": "scout_athletico_pr",
+      "nome": "Olheiro Athletico-PR",
+      "tipo": "olheiro",
+      "clubeId": "athletico_pr",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 8030
+    },
+    "coach_bahia": {
+      "id": "coach_bahia",
+      "nome": "Treinador Bahia",
+      "tipo": "treinador",
+      "clubeId": "bahia",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 25550,
+      "estilo": "equilibrado"
+    },
+    "physio_bahia": {
+      "id": "physio_bahia",
+      "nome": "Preparador Bahia",
+      "tipo": "preparador_fisico",
+      "clubeId": "bahia",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 8760
+    },
+    "scout_bahia": {
+      "id": "scout_bahia",
+      "nome": "Olheiro Bahia",
+      "tipo": "olheiro",
+      "clubeId": "bahia",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 8030
+    },
+    "coach_botafogo": {
+      "id": "coach_botafogo",
+      "nome": "Treinador Botafogo",
+      "tipo": "treinador",
+      "clubeId": "botafogo",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 25200,
+      "estilo": "equilibrado"
+    },
+    "physio_botafogo": {
+      "id": "physio_botafogo",
+      "nome": "Preparador Botafogo",
+      "tipo": "preparador_fisico",
+      "clubeId": "botafogo",
+      "licenca": "B",
+      "reputacao": 67,
+      "salarioSemanal": 8640
+    },
+    "scout_botafogo": {
+      "id": "scout_botafogo",
+      "nome": "Olheiro Botafogo",
+      "tipo": "olheiro",
+      "clubeId": "botafogo",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 7920
+    },
+    "coach_corinthians": {
+      "id": "coach_corinthians",
+      "nome": "Treinador Corinthians",
+      "tipo": "treinador",
+      "clubeId": "corinthians",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 25200,
+      "estilo": "equilibrado"
+    },
+    "physio_corinthians": {
+      "id": "physio_corinthians",
+      "nome": "Preparador Corinthians",
+      "tipo": "preparador_fisico",
+      "clubeId": "corinthians",
+      "licenca": "B",
+      "reputacao": 67,
+      "salarioSemanal": 8640
+    },
+    "scout_corinthians": {
+      "id": "scout_corinthians",
+      "nome": "Olheiro Corinthians",
+      "tipo": "olheiro",
+      "clubeId": "corinthians",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 7920
+    },
+    "coach_criciuma": {
+      "id": "coach_criciuma",
+      "nome": "Treinador Criciuma",
+      "tipo": "treinador",
+      "clubeId": "criciuma",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 24850,
+      "estilo": "equilibrado"
+    },
+    "physio_criciuma": {
+      "id": "physio_criciuma",
+      "nome": "Preparador Criciuma",
+      "tipo": "preparador_fisico",
+      "clubeId": "criciuma",
+      "licenca": "B",
+      "reputacao": 66,
+      "salarioSemanal": 8520
+    },
+    "scout_criciuma": {
+      "id": "scout_criciuma",
+      "nome": "Olheiro Criciuma",
+      "tipo": "olheiro",
+      "clubeId": "criciuma",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 7810
+    },
+    "coach_cruzeiro": {
+      "id": "coach_cruzeiro",
+      "nome": "Treinador Cruzeiro",
+      "tipo": "treinador",
+      "clubeId": "cruzeiro",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 24850,
+      "estilo": "equilibrado"
+    },
+    "physio_cruzeiro": {
+      "id": "physio_cruzeiro",
+      "nome": "Preparador Cruzeiro",
+      "tipo": "preparador_fisico",
+      "clubeId": "cruzeiro",
+      "licenca": "B",
+      "reputacao": 66,
+      "salarioSemanal": 8520
+    },
+    "scout_cruzeiro": {
+      "id": "scout_cruzeiro",
+      "nome": "Olheiro Cruzeiro",
+      "tipo": "olheiro",
+      "clubeId": "cruzeiro",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 7810
+    },
+    "coach_cuiaba": {
+      "id": "coach_cuiaba",
+      "nome": "Treinador Cuiaba",
+      "tipo": "treinador",
+      "clubeId": "cuiaba",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 24500,
+      "estilo": "equilibrado"
+    },
+    "physio_cuiaba": {
+      "id": "physio_cuiaba",
+      "nome": "Preparador Cuiaba",
+      "tipo": "preparador_fisico",
+      "clubeId": "cuiaba",
+      "licenca": "B",
+      "reputacao": 65,
+      "salarioSemanal": 8400
+    },
+    "scout_cuiaba": {
+      "id": "scout_cuiaba",
+      "nome": "Olheiro Cuiaba",
+      "tipo": "olheiro",
+      "clubeId": "cuiaba",
+      "licenca": "B",
+      "reputacao": 67,
+      "salarioSemanal": 7700
+    },
+    "coach_flamengo": {
+      "id": "coach_flamengo",
+      "nome": "Treinador Flamengo",
+      "tipo": "treinador",
+      "clubeId": "flamengo",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 24500,
+      "estilo": "equilibrado"
+    },
+    "physio_flamengo": {
+      "id": "physio_flamengo",
+      "nome": "Preparador Flamengo",
+      "tipo": "preparador_fisico",
+      "clubeId": "flamengo",
+      "licenca": "B",
+      "reputacao": 65,
+      "salarioSemanal": 8400
+    },
+    "scout_flamengo": {
+      "id": "scout_flamengo",
+      "nome": "Olheiro Flamengo",
+      "tipo": "olheiro",
+      "clubeId": "flamengo",
+      "licenca": "B",
+      "reputacao": 67,
+      "salarioSemanal": 7700
+    },
+    "coach_fluminense": {
+      "id": "coach_fluminense",
+      "nome": "Treinador Fluminense",
+      "tipo": "treinador",
+      "clubeId": "fluminense",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 24150,
+      "estilo": "equilibrado"
+    },
+    "physio_fluminense": {
+      "id": "physio_fluminense",
+      "nome": "Preparador Fluminense",
+      "tipo": "preparador_fisico",
+      "clubeId": "fluminense",
+      "licenca": "B",
+      "reputacao": 64,
+      "salarioSemanal": 8280
+    },
+    "scout_fluminense": {
+      "id": "scout_fluminense",
+      "nome": "Olheiro Fluminense",
+      "tipo": "olheiro",
+      "clubeId": "fluminense",
+      "licenca": "B",
+      "reputacao": 66,
+      "salarioSemanal": 7590
+    },
+    "coach_fortaleza": {
+      "id": "coach_fortaleza",
+      "nome": "Treinador Fortaleza",
+      "tipo": "treinador",
+      "clubeId": "fortaleza",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 24150,
+      "estilo": "equilibrado"
+    },
+    "physio_fortaleza": {
+      "id": "physio_fortaleza",
+      "nome": "Preparador Fortaleza",
+      "tipo": "preparador_fisico",
+      "clubeId": "fortaleza",
+      "licenca": "B",
+      "reputacao": 64,
+      "salarioSemanal": 8280
+    },
+    "scout_fortaleza": {
+      "id": "scout_fortaleza",
+      "nome": "Olheiro Fortaleza",
+      "tipo": "olheiro",
+      "clubeId": "fortaleza",
+      "licenca": "B",
+      "reputacao": 66,
+      "salarioSemanal": 7590
+    },
+    "coach_gremio": {
+      "id": "coach_gremio",
+      "nome": "Treinador Gremio",
+      "tipo": "treinador",
+      "clubeId": "gremio",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 23800,
+      "estilo": "equilibrado"
+    },
+    "physio_gremio": {
+      "id": "physio_gremio",
+      "nome": "Preparador Gremio",
+      "tipo": "preparador_fisico",
+      "clubeId": "gremio",
+      "licenca": "B",
+      "reputacao": 63,
+      "salarioSemanal": 8160
+    },
+    "scout_gremio": {
+      "id": "scout_gremio",
+      "nome": "Olheiro Gremio",
+      "tipo": "olheiro",
+      "clubeId": "gremio",
+      "licenca": "B",
+      "reputacao": 65,
+      "salarioSemanal": 7480
+    },
+    "coach_internacional": {
+      "id": "coach_internacional",
+      "nome": "Treinador Internacional",
+      "tipo": "treinador",
+      "clubeId": "internacional",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 23800,
+      "estilo": "equilibrado"
+    },
+    "physio_internacional": {
+      "id": "physio_internacional",
+      "nome": "Preparador Internacional",
+      "tipo": "preparador_fisico",
+      "clubeId": "internacional",
+      "licenca": "B",
+      "reputacao": 63,
+      "salarioSemanal": 8160
+    },
+    "scout_internacional": {
+      "id": "scout_internacional",
+      "nome": "Olheiro Internacional",
+      "tipo": "olheiro",
+      "clubeId": "internacional",
+      "licenca": "B",
+      "reputacao": 65,
+      "salarioSemanal": 7480
+    },
+    "coach_juventude": {
+      "id": "coach_juventude",
+      "nome": "Treinador Juventude",
+      "tipo": "treinador",
+      "clubeId": "juventude",
+      "licenca": "C",
+      "reputacao": 67,
+      "salarioSemanal": 23450,
+      "estilo": "equilibrado"
+    },
+    "physio_juventude": {
+      "id": "physio_juventude",
+      "nome": "Preparador Juventude",
+      "tipo": "preparador_fisico",
+      "clubeId": "juventude",
+      "licenca": "B",
+      "reputacao": 62,
+      "salarioSemanal": 8040
+    },
+    "scout_juventude": {
+      "id": "scout_juventude",
+      "nome": "Olheiro Juventude",
+      "tipo": "olheiro",
+      "clubeId": "juventude",
+      "licenca": "B",
+      "reputacao": 64,
+      "salarioSemanal": 7370
+    },
+    "coach_palmeiras": {
+      "id": "coach_palmeiras",
+      "nome": "Treinador Palmeiras",
+      "tipo": "treinador",
+      "clubeId": "palmeiras",
+      "licenca": "C",
+      "reputacao": 67,
+      "salarioSemanal": 23450,
+      "estilo": "equilibrado"
+    },
+    "physio_palmeiras": {
+      "id": "physio_palmeiras",
+      "nome": "Preparador Palmeiras",
+      "tipo": "preparador_fisico",
+      "clubeId": "palmeiras",
+      "licenca": "B",
+      "reputacao": 62,
+      "salarioSemanal": 8040
+    },
+    "scout_palmeiras": {
+      "id": "scout_palmeiras",
+      "nome": "Olheiro Palmeiras",
+      "tipo": "olheiro",
+      "clubeId": "palmeiras",
+      "licenca": "B",
+      "reputacao": 64,
+      "salarioSemanal": 7370
+    },
+    "coach_red_bull_bragantino": {
+      "id": "coach_red_bull_bragantino",
+      "nome": "Treinador Red Bull Bragantino",
+      "tipo": "treinador",
+      "clubeId": "red_bull_bragantino",
+      "licenca": "C",
+      "reputacao": 66,
+      "salarioSemanal": 23100,
+      "estilo": "equilibrado"
+    },
+    "physio_red_bull_bragantino": {
+      "id": "physio_red_bull_bragantino",
+      "nome": "Preparador Red Bull Bragantino",
+      "tipo": "preparador_fisico",
+      "clubeId": "red_bull_bragantino",
+      "licenca": "B",
+      "reputacao": 61,
+      "salarioSemanal": 7920
+    },
+    "scout_red_bull_bragantino": {
+      "id": "scout_red_bull_bragantino",
+      "nome": "Olheiro Red Bull Bragantino",
+      "tipo": "olheiro",
+      "clubeId": "red_bull_bragantino",
+      "licenca": "B",
+      "reputacao": 63,
+      "salarioSemanal": 7260
+    },
+    "coach_sao_paulo": {
+      "id": "coach_sao_paulo",
+      "nome": "Treinador Sao Paulo",
+      "tipo": "treinador",
+      "clubeId": "sao_paulo",
+      "licenca": "C",
+      "reputacao": 66,
+      "salarioSemanal": 23100,
+      "estilo": "equilibrado"
+    },
+    "physio_sao_paulo": {
+      "id": "physio_sao_paulo",
+      "nome": "Preparador Sao Paulo",
+      "tipo": "preparador_fisico",
+      "clubeId": "sao_paulo",
+      "licenca": "B",
+      "reputacao": 61,
+      "salarioSemanal": 7920
+    },
+    "scout_sao_paulo": {
+      "id": "scout_sao_paulo",
+      "nome": "Olheiro Sao Paulo",
+      "tipo": "olheiro",
+      "clubeId": "sao_paulo",
+      "licenca": "B",
+      "reputacao": 63,
+      "salarioSemanal": 7260
+    },
+    "coach_vasco": {
+      "id": "coach_vasco",
+      "nome": "Treinador Vasco",
+      "tipo": "treinador",
+      "clubeId": "vasco",
+      "licenca": "C",
+      "reputacao": 65,
+      "salarioSemanal": 22750,
+      "estilo": "equilibrado"
+    },
+    "physio_vasco": {
+      "id": "physio_vasco",
+      "nome": "Preparador Vasco",
+      "tipo": "preparador_fisico",
+      "clubeId": "vasco",
+      "licenca": "B",
+      "reputacao": 60,
+      "salarioSemanal": 7800
+    },
+    "scout_vasco": {
+      "id": "scout_vasco",
+      "nome": "Olheiro Vasco",
+      "tipo": "olheiro",
+      "clubeId": "vasco",
+      "licenca": "B",
+      "reputacao": 62,
+      "salarioSemanal": 7150
+    },
+    "coach_vitoria": {
+      "id": "coach_vitoria",
+      "nome": "Treinador Vitoria",
+      "tipo": "treinador",
+      "clubeId": "vitoria",
+      "licenca": "C",
+      "reputacao": 65,
+      "salarioSemanal": 22750,
+      "estilo": "equilibrado"
+    },
+    "physio_vitoria": {
+      "id": "physio_vitoria",
+      "nome": "Preparador Vitoria",
+      "tipo": "preparador_fisico",
+      "clubeId": "vitoria",
+      "licenca": "B",
+      "reputacao": 60,
+      "salarioSemanal": 7800
+    },
+    "scout_vitoria": {
+      "id": "scout_vitoria",
+      "nome": "Olheiro Vitoria",
+      "tipo": "olheiro",
+      "clubeId": "vitoria",
+      "licenca": "B",
+      "reputacao": 62,
+      "salarioSemanal": 7150
+    },
+    "coach_augsburg": {
+      "id": "coach_augsburg",
+      "nome": "Treinador Augsburg",
+      "tipo": "treinador",
+      "clubeId": "augsburg",
+      "licenca": "Pro",
+      "reputacao": 82,
+      "salarioSemanal": 28700,
+      "estilo": "equilibrado"
+    },
+    "physio_augsburg": {
+      "id": "physio_augsburg",
+      "nome": "Preparador Augsburg",
+      "tipo": "preparador_fisico",
+      "clubeId": "augsburg",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 9840
+    },
+    "scout_augsburg": {
+      "id": "scout_augsburg",
+      "nome": "Olheiro Augsburg",
+      "tipo": "olheiro",
+      "clubeId": "augsburg",
+      "licenca": "B",
+      "reputacao": 79,
+      "salarioSemanal": 9020
+    },
+    "coach_bayern": {
+      "id": "coach_bayern",
+      "nome": "Treinador Bayern",
+      "tipo": "treinador",
+      "clubeId": "bayern",
+      "licenca": "Pro",
+      "reputacao": 82,
+      "salarioSemanal": 28700,
+      "estilo": "equilibrado"
+    },
+    "physio_bayern": {
+      "id": "physio_bayern",
+      "nome": "Preparador Bayern",
+      "tipo": "preparador_fisico",
+      "clubeId": "bayern",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 9840
+    },
+    "scout_bayern": {
+      "id": "scout_bayern",
+      "nome": "Olheiro Bayern",
+      "tipo": "olheiro",
+      "clubeId": "bayern",
+      "licenca": "B",
+      "reputacao": 79,
+      "salarioSemanal": 9020
+    },
+    "coach_bochum": {
+      "id": "coach_bochum",
+      "nome": "Treinador Bochum",
+      "tipo": "treinador",
+      "clubeId": "bochum",
+      "licenca": "A",
+      "reputacao": 81,
+      "salarioSemanal": 28350,
+      "estilo": "equilibrado"
+    },
+    "physio_bochum": {
+      "id": "physio_bochum",
+      "nome": "Preparador Bochum",
+      "tipo": "preparador_fisico",
+      "clubeId": "bochum",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 9720
+    },
+    "scout_bochum": {
+      "id": "scout_bochum",
+      "nome": "Olheiro Bochum",
+      "tipo": "olheiro",
+      "clubeId": "bochum",
+      "licenca": "B",
+      "reputacao": 78,
+      "salarioSemanal": 8910
+    },
+    "coach_borussia_dortmund": {
+      "id": "coach_borussia_dortmund",
+      "nome": "Treinador Borussia Dortmund",
+      "tipo": "treinador",
+      "clubeId": "borussia_dortmund",
+      "licenca": "A",
+      "reputacao": 81,
+      "salarioSemanal": 28350,
+      "estilo": "equilibrado"
+    },
+    "physio_borussia_dortmund": {
+      "id": "physio_borussia_dortmund",
+      "nome": "Preparador Borussia Dortmund",
+      "tipo": "preparador_fisico",
+      "clubeId": "borussia_dortmund",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 9720
+    },
+    "scout_borussia_dortmund": {
+      "id": "scout_borussia_dortmund",
+      "nome": "Olheiro Borussia Dortmund",
+      "tipo": "olheiro",
+      "clubeId": "borussia_dortmund",
+      "licenca": "B",
+      "reputacao": 78,
+      "salarioSemanal": 8910
+    },
+    "coach_borussia_monchengladbach": {
+      "id": "coach_borussia_monchengladbach",
+      "nome": "Treinador Borussia Monchengladbach",
+      "tipo": "treinador",
+      "clubeId": "borussia_monchengladbach",
+      "licenca": "A",
+      "reputacao": 80,
+      "salarioSemanal": 28000,
+      "estilo": "equilibrado"
+    },
+    "physio_borussia_monchengladbach": {
+      "id": "physio_borussia_monchengladbach",
+      "nome": "Preparador Borussia Monchengladbach",
+      "tipo": "preparador_fisico",
+      "clubeId": "borussia_monchengladbach",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 9600
+    },
+    "scout_borussia_monchengladbach": {
+      "id": "scout_borussia_monchengladbach",
+      "nome": "Olheiro Borussia Monchengladbach",
+      "tipo": "olheiro",
+      "clubeId": "borussia_monchengladbach",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 8800
+    },
+    "coach_eintracht_frankfurt": {
+      "id": "coach_eintracht_frankfurt",
+      "nome": "Treinador Eintracht Frankfurt",
+      "tipo": "treinador",
+      "clubeId": "eintracht_frankfurt",
+      "licenca": "A",
+      "reputacao": 80,
+      "salarioSemanal": 28000,
+      "estilo": "equilibrado"
+    },
+    "physio_eintracht_frankfurt": {
+      "id": "physio_eintracht_frankfurt",
+      "nome": "Preparador Eintracht Frankfurt",
+      "tipo": "preparador_fisico",
+      "clubeId": "eintracht_frankfurt",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 9600
+    },
+    "scout_eintracht_frankfurt": {
+      "id": "scout_eintracht_frankfurt",
+      "nome": "Olheiro Eintracht Frankfurt",
+      "tipo": "olheiro",
+      "clubeId": "eintracht_frankfurt",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 8800
+    },
+    "coach_freiburg": {
+      "id": "coach_freiburg",
+      "nome": "Treinador Freiburg",
+      "tipo": "treinador",
+      "clubeId": "freiburg",
+      "licenca": "A",
+      "reputacao": 79,
+      "salarioSemanal": 27650,
+      "estilo": "equilibrado"
+    },
+    "physio_freiburg": {
+      "id": "physio_freiburg",
+      "nome": "Preparador Freiburg",
+      "tipo": "preparador_fisico",
+      "clubeId": "freiburg",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 9480
+    },
+    "scout_freiburg": {
+      "id": "scout_freiburg",
+      "nome": "Olheiro Freiburg",
+      "tipo": "olheiro",
+      "clubeId": "freiburg",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 8690
+    },
+    "coach_heidenheim": {
+      "id": "coach_heidenheim",
+      "nome": "Treinador Heidenheim",
+      "tipo": "treinador",
+      "clubeId": "heidenheim",
+      "licenca": "A",
+      "reputacao": 79,
+      "salarioSemanal": 27650,
+      "estilo": "equilibrado"
+    },
+    "physio_heidenheim": {
+      "id": "physio_heidenheim",
+      "nome": "Preparador Heidenheim",
+      "tipo": "preparador_fisico",
+      "clubeId": "heidenheim",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 9480
+    },
+    "scout_heidenheim": {
+      "id": "scout_heidenheim",
+      "nome": "Olheiro Heidenheim",
+      "tipo": "olheiro",
+      "clubeId": "heidenheim",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 8690
+    },
+    "coach_hoffenheim": {
+      "id": "coach_hoffenheim",
+      "nome": "Treinador Hoffenheim",
+      "tipo": "treinador",
+      "clubeId": "hoffenheim",
+      "licenca": "A",
+      "reputacao": 78,
+      "salarioSemanal": 27300,
+      "estilo": "equilibrado"
+    },
+    "physio_hoffenheim": {
+      "id": "physio_hoffenheim",
+      "nome": "Preparador Hoffenheim",
+      "tipo": "preparador_fisico",
+      "clubeId": "hoffenheim",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 9360
+    },
+    "scout_hoffenheim": {
+      "id": "scout_hoffenheim",
+      "nome": "Olheiro Hoffenheim",
+      "tipo": "olheiro",
+      "clubeId": "hoffenheim",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 8580
+    },
+    "coach_holstein_kiel": {
+      "id": "coach_holstein_kiel",
+      "nome": "Treinador Holstein Kiel",
+      "tipo": "treinador",
+      "clubeId": "holstein_kiel",
+      "licenca": "A",
+      "reputacao": 78,
+      "salarioSemanal": 27300,
+      "estilo": "equilibrado"
+    },
+    "physio_holstein_kiel": {
+      "id": "physio_holstein_kiel",
+      "nome": "Preparador Holstein Kiel",
+      "tipo": "preparador_fisico",
+      "clubeId": "holstein_kiel",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 9360
+    },
+    "scout_holstein_kiel": {
+      "id": "scout_holstein_kiel",
+      "nome": "Olheiro Holstein Kiel",
+      "tipo": "olheiro",
+      "clubeId": "holstein_kiel",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 8580
+    },
+    "coach_leverkusen": {
+      "id": "coach_leverkusen",
+      "nome": "Treinador Leverkusen",
+      "tipo": "treinador",
+      "clubeId": "leverkusen",
+      "licenca": "A",
+      "reputacao": 77,
+      "salarioSemanal": 26950,
+      "estilo": "equilibrado"
+    },
+    "physio_leverkusen": {
+      "id": "physio_leverkusen",
+      "nome": "Preparador Leverkusen",
+      "tipo": "preparador_fisico",
+      "clubeId": "leverkusen",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 9240
+    },
+    "scout_leverkusen": {
+      "id": "scout_leverkusen",
+      "nome": "Olheiro Leverkusen",
+      "tipo": "olheiro",
+      "clubeId": "leverkusen",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 8470
+    },
+    "coach_mainz": {
+      "id": "coach_mainz",
+      "nome": "Treinador Mainz",
+      "tipo": "treinador",
+      "clubeId": "mainz",
+      "licenca": "A",
+      "reputacao": 77,
+      "salarioSemanal": 26950,
+      "estilo": "equilibrado"
+    },
+    "physio_mainz": {
+      "id": "physio_mainz",
+      "nome": "Preparador Mainz",
+      "tipo": "preparador_fisico",
+      "clubeId": "mainz",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 9240
+    },
+    "scout_mainz": {
+      "id": "scout_mainz",
+      "nome": "Olheiro Mainz",
+      "tipo": "olheiro",
+      "clubeId": "mainz",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 8470
+    },
+    "coach_rb_leipzig": {
+      "id": "coach_rb_leipzig",
+      "nome": "Treinador RB Leipzig",
+      "tipo": "treinador",
+      "clubeId": "rb_leipzig",
+      "licenca": "A",
+      "reputacao": 76,
+      "salarioSemanal": 26600,
+      "estilo": "equilibrado"
+    },
+    "physio_rb_leipzig": {
+      "id": "physio_rb_leipzig",
+      "nome": "Preparador RB Leipzig",
+      "tipo": "preparador_fisico",
+      "clubeId": "rb_leipzig",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 9120
+    },
+    "scout_rb_leipzig": {
+      "id": "scout_rb_leipzig",
+      "nome": "Olheiro RB Leipzig",
+      "tipo": "olheiro",
+      "clubeId": "rb_leipzig",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 8360
+    },
+    "coach_st_pauli": {
+      "id": "coach_st_pauli",
+      "nome": "Treinador St Pauli",
+      "tipo": "treinador",
+      "clubeId": "st_pauli",
+      "licenca": "A",
+      "reputacao": 76,
+      "salarioSemanal": 26600,
+      "estilo": "equilibrado"
+    },
+    "physio_st_pauli": {
+      "id": "physio_st_pauli",
+      "nome": "Preparador St Pauli",
+      "tipo": "preparador_fisico",
+      "clubeId": "st_pauli",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 9120
+    },
+    "scout_st_pauli": {
+      "id": "scout_st_pauli",
+      "nome": "Olheiro St Pauli",
+      "tipo": "olheiro",
+      "clubeId": "st_pauli",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 8360
+    },
+    "coach_stuttgart": {
+      "id": "coach_stuttgart",
+      "nome": "Treinador Stuttgart",
+      "tipo": "treinador",
+      "clubeId": "stuttgart",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 26250,
+      "estilo": "equilibrado"
+    },
+    "physio_stuttgart": {
+      "id": "physio_stuttgart",
+      "nome": "Preparador Stuttgart",
+      "tipo": "preparador_fisico",
+      "clubeId": "stuttgart",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 9000
+    },
+    "scout_stuttgart": {
+      "id": "scout_stuttgart",
+      "nome": "Olheiro Stuttgart",
+      "tipo": "olheiro",
+      "clubeId": "stuttgart",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 8250
+    },
+    "coach_union_berlin": {
+      "id": "coach_union_berlin",
+      "nome": "Treinador Union Berlin",
+      "tipo": "treinador",
+      "clubeId": "union_berlin",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 26250,
+      "estilo": "equilibrado"
+    },
+    "physio_union_berlin": {
+      "id": "physio_union_berlin",
+      "nome": "Preparador Union Berlin",
+      "tipo": "preparador_fisico",
+      "clubeId": "union_berlin",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 9000
+    },
+    "scout_union_berlin": {
+      "id": "scout_union_berlin",
+      "nome": "Olheiro Union Berlin",
+      "tipo": "olheiro",
+      "clubeId": "union_berlin",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 8250
+    },
+    "coach_werder_bremen": {
+      "id": "coach_werder_bremen",
+      "nome": "Treinador Werder Bremen",
+      "tipo": "treinador",
+      "clubeId": "werder_bremen",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 25900,
+      "estilo": "equilibrado"
+    },
+    "physio_werder_bremen": {
+      "id": "physio_werder_bremen",
+      "nome": "Preparador Werder Bremen",
+      "tipo": "preparador_fisico",
+      "clubeId": "werder_bremen",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 8880
+    },
+    "scout_werder_bremen": {
+      "id": "scout_werder_bremen",
+      "nome": "Olheiro Werder Bremen",
+      "tipo": "olheiro",
+      "clubeId": "werder_bremen",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 8140
+    },
+    "coach_wolfsburg": {
+      "id": "coach_wolfsburg",
+      "nome": "Treinador Wolfsburg",
+      "tipo": "treinador",
+      "clubeId": "wolfsburg",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 25900,
+      "estilo": "equilibrado"
+    },
+    "physio_wolfsburg": {
+      "id": "physio_wolfsburg",
+      "nome": "Preparador Wolfsburg",
+      "tipo": "preparador_fisico",
+      "clubeId": "wolfsburg",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 8880
+    },
+    "scout_wolfsburg": {
+      "id": "scout_wolfsburg",
+      "nome": "Olheiro Wolfsburg",
+      "tipo": "olheiro",
+      "clubeId": "wolfsburg",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 8140
+    },
+    "coach_atalanta": {
+      "id": "coach_atalanta",
+      "nome": "Treinador Atalanta",
+      "tipo": "treinador",
+      "clubeId": "atalanta",
+      "licenca": "A",
+      "reputacao": 81,
+      "salarioSemanal": 28350,
+      "estilo": "equilibrado"
+    },
+    "physio_atalanta": {
+      "id": "physio_atalanta",
+      "nome": "Preparador Atalanta",
+      "tipo": "preparador_fisico",
+      "clubeId": "atalanta",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 9720
+    },
+    "scout_atalanta": {
+      "id": "scout_atalanta",
+      "nome": "Olheiro Atalanta",
+      "tipo": "olheiro",
+      "clubeId": "atalanta",
+      "licenca": "B",
+      "reputacao": 78,
+      "salarioSemanal": 8910
+    },
+    "coach_bologna": {
+      "id": "coach_bologna",
+      "nome": "Treinador Bologna",
+      "tipo": "treinador",
+      "clubeId": "bologna",
+      "licenca": "A",
+      "reputacao": 81,
+      "salarioSemanal": 28350,
+      "estilo": "equilibrado"
+    },
+    "physio_bologna": {
+      "id": "physio_bologna",
+      "nome": "Preparador Bologna",
+      "tipo": "preparador_fisico",
+      "clubeId": "bologna",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 9720
+    },
+    "scout_bologna": {
+      "id": "scout_bologna",
+      "nome": "Olheiro Bologna",
+      "tipo": "olheiro",
+      "clubeId": "bologna",
+      "licenca": "B",
+      "reputacao": 78,
+      "salarioSemanal": 8910
+    },
+    "coach_cagliari": {
+      "id": "coach_cagliari",
+      "nome": "Treinador Cagliari",
+      "tipo": "treinador",
+      "clubeId": "cagliari",
+      "licenca": "A",
+      "reputacao": 80,
+      "salarioSemanal": 28000,
+      "estilo": "equilibrado"
+    },
+    "physio_cagliari": {
+      "id": "physio_cagliari",
+      "nome": "Preparador Cagliari",
+      "tipo": "preparador_fisico",
+      "clubeId": "cagliari",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 9600
+    },
+    "scout_cagliari": {
+      "id": "scout_cagliari",
+      "nome": "Olheiro Cagliari",
+      "tipo": "olheiro",
+      "clubeId": "cagliari",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 8800
+    },
+    "coach_como": {
+      "id": "coach_como",
+      "nome": "Treinador Como",
+      "tipo": "treinador",
+      "clubeId": "como",
+      "licenca": "A",
+      "reputacao": 80,
+      "salarioSemanal": 28000,
+      "estilo": "equilibrado"
+    },
+    "physio_como": {
+      "id": "physio_como",
+      "nome": "Preparador Como",
+      "tipo": "preparador_fisico",
+      "clubeId": "como",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 9600
+    },
+    "scout_como": {
+      "id": "scout_como",
+      "nome": "Olheiro Como",
+      "tipo": "olheiro",
+      "clubeId": "como",
+      "licenca": "B",
+      "reputacao": 77,
+      "salarioSemanal": 8800
+    },
+    "coach_empoli": {
+      "id": "coach_empoli",
+      "nome": "Treinador Empoli",
+      "tipo": "treinador",
+      "clubeId": "empoli",
+      "licenca": "A",
+      "reputacao": 79,
+      "salarioSemanal": 27650,
+      "estilo": "equilibrado"
+    },
+    "physio_empoli": {
+      "id": "physio_empoli",
+      "nome": "Preparador Empoli",
+      "tipo": "preparador_fisico",
+      "clubeId": "empoli",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 9480
+    },
+    "scout_empoli": {
+      "id": "scout_empoli",
+      "nome": "Olheiro Empoli",
+      "tipo": "olheiro",
+      "clubeId": "empoli",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 8690
+    },
+    "coach_fiorentina": {
+      "id": "coach_fiorentina",
+      "nome": "Treinador Fiorentina",
+      "tipo": "treinador",
+      "clubeId": "fiorentina",
+      "licenca": "A",
+      "reputacao": 79,
+      "salarioSemanal": 27650,
+      "estilo": "equilibrado"
+    },
+    "physio_fiorentina": {
+      "id": "physio_fiorentina",
+      "nome": "Preparador Fiorentina",
+      "tipo": "preparador_fisico",
+      "clubeId": "fiorentina",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 9480
+    },
+    "scout_fiorentina": {
+      "id": "scout_fiorentina",
+      "nome": "Olheiro Fiorentina",
+      "tipo": "olheiro",
+      "clubeId": "fiorentina",
+      "licenca": "B",
+      "reputacao": 76,
+      "salarioSemanal": 8690
+    },
+    "coach_genoa": {
+      "id": "coach_genoa",
+      "nome": "Treinador Genoa",
+      "tipo": "treinador",
+      "clubeId": "genoa",
+      "licenca": "A",
+      "reputacao": 78,
+      "salarioSemanal": 27300,
+      "estilo": "equilibrado"
+    },
+    "physio_genoa": {
+      "id": "physio_genoa",
+      "nome": "Preparador Genoa",
+      "tipo": "preparador_fisico",
+      "clubeId": "genoa",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 9360
+    },
+    "scout_genoa": {
+      "id": "scout_genoa",
+      "nome": "Olheiro Genoa",
+      "tipo": "olheiro",
+      "clubeId": "genoa",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 8580
+    },
+    "coach_hellas_verona": {
+      "id": "coach_hellas_verona",
+      "nome": "Treinador Hellas Verona",
+      "tipo": "treinador",
+      "clubeId": "hellas_verona",
+      "licenca": "A",
+      "reputacao": 78,
+      "salarioSemanal": 27300,
+      "estilo": "equilibrado"
+    },
+    "physio_hellas_verona": {
+      "id": "physio_hellas_verona",
+      "nome": "Preparador Hellas Verona",
+      "tipo": "preparador_fisico",
+      "clubeId": "hellas_verona",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 9360
+    },
+    "scout_hellas_verona": {
+      "id": "scout_hellas_verona",
+      "nome": "Olheiro Hellas Verona",
+      "tipo": "olheiro",
+      "clubeId": "hellas_verona",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 8580
+    },
+    "coach_inter": {
+      "id": "coach_inter",
+      "nome": "Treinador Inter",
+      "tipo": "treinador",
+      "clubeId": "inter",
+      "licenca": "A",
+      "reputacao": 77,
+      "salarioSemanal": 26950,
+      "estilo": "equilibrado"
+    },
+    "physio_inter": {
+      "id": "physio_inter",
+      "nome": "Preparador Inter",
+      "tipo": "preparador_fisico",
+      "clubeId": "inter",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 9240
+    },
+    "scout_inter": {
+      "id": "scout_inter",
+      "nome": "Olheiro Inter",
+      "tipo": "olheiro",
+      "clubeId": "inter",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 8470
+    },
+    "coach_juventus": {
+      "id": "coach_juventus",
+      "nome": "Treinador Juventus",
+      "tipo": "treinador",
+      "clubeId": "juventus",
+      "licenca": "A",
+      "reputacao": 77,
+      "salarioSemanal": 26950,
+      "estilo": "equilibrado"
+    },
+    "physio_juventus": {
+      "id": "physio_juventus",
+      "nome": "Preparador Juventus",
+      "tipo": "preparador_fisico",
+      "clubeId": "juventus",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 9240
+    },
+    "scout_juventus": {
+      "id": "scout_juventus",
+      "nome": "Olheiro Juventus",
+      "tipo": "olheiro",
+      "clubeId": "juventus",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 8470
+    },
+    "coach_lazio": {
+      "id": "coach_lazio",
+      "nome": "Treinador Lazio",
+      "tipo": "treinador",
+      "clubeId": "lazio",
+      "licenca": "A",
+      "reputacao": 76,
+      "salarioSemanal": 26600,
+      "estilo": "equilibrado"
+    },
+    "physio_lazio": {
+      "id": "physio_lazio",
+      "nome": "Preparador Lazio",
+      "tipo": "preparador_fisico",
+      "clubeId": "lazio",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 9120
+    },
+    "scout_lazio": {
+      "id": "scout_lazio",
+      "nome": "Olheiro Lazio",
+      "tipo": "olheiro",
+      "clubeId": "lazio",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 8360
+    },
+    "coach_lecce": {
+      "id": "coach_lecce",
+      "nome": "Treinador Lecce",
+      "tipo": "treinador",
+      "clubeId": "lecce",
+      "licenca": "A",
+      "reputacao": 76,
+      "salarioSemanal": 26600,
+      "estilo": "equilibrado"
+    },
+    "physio_lecce": {
+      "id": "physio_lecce",
+      "nome": "Preparador Lecce",
+      "tipo": "preparador_fisico",
+      "clubeId": "lecce",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 9120
+    },
+    "scout_lecce": {
+      "id": "scout_lecce",
+      "nome": "Olheiro Lecce",
+      "tipo": "olheiro",
+      "clubeId": "lecce",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 8360
+    },
+    "coach_milan": {
+      "id": "coach_milan",
+      "nome": "Treinador Milan",
+      "tipo": "treinador",
+      "clubeId": "milan",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 26250,
+      "estilo": "equilibrado"
+    },
+    "physio_milan": {
+      "id": "physio_milan",
+      "nome": "Preparador Milan",
+      "tipo": "preparador_fisico",
+      "clubeId": "milan",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 9000
+    },
+    "scout_milan": {
+      "id": "scout_milan",
+      "nome": "Olheiro Milan",
+      "tipo": "olheiro",
+      "clubeId": "milan",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 8250
+    },
+    "coach_monza": {
+      "id": "coach_monza",
+      "nome": "Treinador Monza",
+      "tipo": "treinador",
+      "clubeId": "monza",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 26250,
+      "estilo": "equilibrado"
+    },
+    "physio_monza": {
+      "id": "physio_monza",
+      "nome": "Preparador Monza",
+      "tipo": "preparador_fisico",
+      "clubeId": "monza",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 9000
+    },
+    "scout_monza": {
+      "id": "scout_monza",
+      "nome": "Olheiro Monza",
+      "tipo": "olheiro",
+      "clubeId": "monza",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 8250
+    },
+    "coach_napoli": {
+      "id": "coach_napoli",
+      "nome": "Treinador Napoli",
+      "tipo": "treinador",
+      "clubeId": "napoli",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 25900,
+      "estilo": "equilibrado"
+    },
+    "physio_napoli": {
+      "id": "physio_napoli",
+      "nome": "Preparador Napoli",
+      "tipo": "preparador_fisico",
+      "clubeId": "napoli",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 8880
+    },
+    "scout_napoli": {
+      "id": "scout_napoli",
+      "nome": "Olheiro Napoli",
+      "tipo": "olheiro",
+      "clubeId": "napoli",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 8140
+    },
+    "coach_parma": {
+      "id": "coach_parma",
+      "nome": "Treinador Parma",
+      "tipo": "treinador",
+      "clubeId": "parma",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 25900,
+      "estilo": "equilibrado"
+    },
+    "physio_parma": {
+      "id": "physio_parma",
+      "nome": "Preparador Parma",
+      "tipo": "preparador_fisico",
+      "clubeId": "parma",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 8880
+    },
+    "scout_parma": {
+      "id": "scout_parma",
+      "nome": "Olheiro Parma",
+      "tipo": "olheiro",
+      "clubeId": "parma",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 8140
+    },
+    "coach_roma": {
+      "id": "coach_roma",
+      "nome": "Treinador Roma",
+      "tipo": "treinador",
+      "clubeId": "roma",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 25550,
+      "estilo": "equilibrado"
+    },
+    "physio_roma": {
+      "id": "physio_roma",
+      "nome": "Preparador Roma",
+      "tipo": "preparador_fisico",
+      "clubeId": "roma",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 8760
+    },
+    "scout_roma": {
+      "id": "scout_roma",
+      "nome": "Olheiro Roma",
+      "tipo": "olheiro",
+      "clubeId": "roma",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 8030
+    },
+    "coach_torino": {
+      "id": "coach_torino",
+      "nome": "Treinador Torino",
+      "tipo": "treinador",
+      "clubeId": "torino",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 25550,
+      "estilo": "equilibrado"
+    },
+    "physio_torino": {
+      "id": "physio_torino",
+      "nome": "Preparador Torino",
+      "tipo": "preparador_fisico",
+      "clubeId": "torino",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 8760
+    },
+    "scout_torino": {
+      "id": "scout_torino",
+      "nome": "Olheiro Torino",
+      "tipo": "olheiro",
+      "clubeId": "torino",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 8030
+    },
+    "coach_udinese": {
+      "id": "coach_udinese",
+      "nome": "Treinador Udinese",
+      "tipo": "treinador",
+      "clubeId": "udinese",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 25200,
+      "estilo": "equilibrado"
+    },
+    "physio_udinese": {
+      "id": "physio_udinese",
+      "nome": "Preparador Udinese",
+      "tipo": "preparador_fisico",
+      "clubeId": "udinese",
+      "licenca": "B",
+      "reputacao": 67,
+      "salarioSemanal": 8640
+    },
+    "scout_udinese": {
+      "id": "scout_udinese",
+      "nome": "Olheiro Udinese",
+      "tipo": "olheiro",
+      "clubeId": "udinese",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 7920
+    },
+    "coach_venezia": {
+      "id": "coach_venezia",
+      "nome": "Treinador Venezia",
+      "tipo": "treinador",
+      "clubeId": "venezia",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 25200,
+      "estilo": "equilibrado"
+    },
+    "physio_venezia": {
+      "id": "physio_venezia",
+      "nome": "Preparador Venezia",
+      "tipo": "preparador_fisico",
+      "clubeId": "venezia",
+      "licenca": "B",
+      "reputacao": 67,
+      "salarioSemanal": 8640
+    },
+    "scout_venezia": {
+      "id": "scout_venezia",
+      "nome": "Olheiro Venezia",
+      "tipo": "olheiro",
+      "clubeId": "venezia",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 7920
+    },
+    "coach_avs": {
+      "id": "coach_avs",
+      "nome": "Treinador AVS",
+      "tipo": "treinador",
+      "clubeId": "avs",
+      "licenca": "A",
+      "reputacao": 76,
+      "salarioSemanal": 26600,
+      "estilo": "equilibrado"
+    },
+    "physio_avs": {
+      "id": "physio_avs",
+      "nome": "Preparador AVS",
+      "tipo": "preparador_fisico",
+      "clubeId": "avs",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 9120
+    },
+    "scout_avs": {
+      "id": "scout_avs",
+      "nome": "Olheiro AVS",
+      "tipo": "olheiro",
+      "clubeId": "avs",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 8360
+    },
+    "coach_arouca": {
+      "id": "coach_arouca",
+      "nome": "Treinador Arouca",
+      "tipo": "treinador",
+      "clubeId": "arouca",
+      "licenca": "A",
+      "reputacao": 76,
+      "salarioSemanal": 26600,
+      "estilo": "equilibrado"
+    },
+    "physio_arouca": {
+      "id": "physio_arouca",
+      "nome": "Preparador Arouca",
+      "tipo": "preparador_fisico",
+      "clubeId": "arouca",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 9120
+    },
+    "scout_arouca": {
+      "id": "scout_arouca",
+      "nome": "Olheiro Arouca",
+      "tipo": "olheiro",
+      "clubeId": "arouca",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 8360
+    },
+    "coach_benfica": {
+      "id": "coach_benfica",
+      "nome": "Treinador Benfica",
+      "tipo": "treinador",
+      "clubeId": "benfica",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 26250,
+      "estilo": "equilibrado"
+    },
+    "physio_benfica": {
+      "id": "physio_benfica",
+      "nome": "Preparador Benfica",
+      "tipo": "preparador_fisico",
+      "clubeId": "benfica",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 9000
+    },
+    "scout_benfica": {
+      "id": "scout_benfica",
+      "nome": "Olheiro Benfica",
+      "tipo": "olheiro",
+      "clubeId": "benfica",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 8250
+    },
+    "coach_boavista": {
+      "id": "coach_boavista",
+      "nome": "Treinador Boavista",
+      "tipo": "treinador",
+      "clubeId": "boavista",
+      "licenca": "B",
+      "reputacao": 75,
+      "salarioSemanal": 26250,
+      "estilo": "equilibrado"
+    },
+    "physio_boavista": {
+      "id": "physio_boavista",
+      "nome": "Preparador Boavista",
+      "tipo": "preparador_fisico",
+      "clubeId": "boavista",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 9000
+    },
+    "scout_boavista": {
+      "id": "scout_boavista",
+      "nome": "Olheiro Boavista",
+      "tipo": "olheiro",
+      "clubeId": "boavista",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 8250
+    },
+    "coach_braga": {
+      "id": "coach_braga",
+      "nome": "Treinador Braga",
+      "tipo": "treinador",
+      "clubeId": "braga",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 25900,
+      "estilo": "equilibrado"
+    },
+    "physio_braga": {
+      "id": "physio_braga",
+      "nome": "Preparador Braga",
+      "tipo": "preparador_fisico",
+      "clubeId": "braga",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 8880
+    },
+    "scout_braga": {
+      "id": "scout_braga",
+      "nome": "Olheiro Braga",
+      "tipo": "olheiro",
+      "clubeId": "braga",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 8140
+    },
+    "coach_casa_pia": {
+      "id": "coach_casa_pia",
+      "nome": "Treinador Casa Pia",
+      "tipo": "treinador",
+      "clubeId": "casa_pia",
+      "licenca": "B",
+      "reputacao": 74,
+      "salarioSemanal": 25900,
+      "estilo": "equilibrado"
+    },
+    "physio_casa_pia": {
+      "id": "physio_casa_pia",
+      "nome": "Preparador Casa Pia",
+      "tipo": "preparador_fisico",
+      "clubeId": "casa_pia",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 8880
+    },
+    "scout_casa_pia": {
+      "id": "scout_casa_pia",
+      "nome": "Olheiro Casa Pia",
+      "tipo": "olheiro",
+      "clubeId": "casa_pia",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 8140
+    },
+    "coach_estoril": {
+      "id": "coach_estoril",
+      "nome": "Treinador Estoril",
+      "tipo": "treinador",
+      "clubeId": "estoril",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 25550,
+      "estilo": "equilibrado"
+    },
+    "physio_estoril": {
+      "id": "physio_estoril",
+      "nome": "Preparador Estoril",
+      "tipo": "preparador_fisico",
+      "clubeId": "estoril",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 8760
+    },
+    "scout_estoril": {
+      "id": "scout_estoril",
+      "nome": "Olheiro Estoril",
+      "tipo": "olheiro",
+      "clubeId": "estoril",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 8030
+    },
+    "coach_estrela_amadora": {
+      "id": "coach_estrela_amadora",
+      "nome": "Treinador Estrela Amadora",
+      "tipo": "treinador",
+      "clubeId": "estrela_amadora",
+      "licenca": "B",
+      "reputacao": 73,
+      "salarioSemanal": 25550,
+      "estilo": "equilibrado"
+    },
+    "physio_estrela_amadora": {
+      "id": "physio_estrela_amadora",
+      "nome": "Preparador Estrela Amadora",
+      "tipo": "preparador_fisico",
+      "clubeId": "estrela_amadora",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 8760
+    },
+    "scout_estrela_amadora": {
+      "id": "scout_estrela_amadora",
+      "nome": "Olheiro Estrela Amadora",
+      "tipo": "olheiro",
+      "clubeId": "estrela_amadora",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 8030
+    },
+    "coach_famalicao": {
+      "id": "coach_famalicao",
+      "nome": "Treinador Famalicao",
+      "tipo": "treinador",
+      "clubeId": "famalicao",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 25200,
+      "estilo": "equilibrado"
+    },
+    "physio_famalicao": {
+      "id": "physio_famalicao",
+      "nome": "Preparador Famalicao",
+      "tipo": "preparador_fisico",
+      "clubeId": "famalicao",
+      "licenca": "B",
+      "reputacao": 67,
+      "salarioSemanal": 8640
+    },
+    "scout_famalicao": {
+      "id": "scout_famalicao",
+      "nome": "Olheiro Famalicao",
+      "tipo": "olheiro",
+      "clubeId": "famalicao",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 7920
+    },
+    "coach_farense": {
+      "id": "coach_farense",
+      "nome": "Treinador Farense",
+      "tipo": "treinador",
+      "clubeId": "farense",
+      "licenca": "B",
+      "reputacao": 72,
+      "salarioSemanal": 25200,
+      "estilo": "equilibrado"
+    },
+    "physio_farense": {
+      "id": "physio_farense",
+      "nome": "Preparador Farense",
+      "tipo": "preparador_fisico",
+      "clubeId": "farense",
+      "licenca": "B",
+      "reputacao": 67,
+      "salarioSemanal": 8640
+    },
+    "scout_farense": {
+      "id": "scout_farense",
+      "nome": "Olheiro Farense",
+      "tipo": "olheiro",
+      "clubeId": "farense",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 7920
+    },
+    "coach_gil_vicente": {
+      "id": "coach_gil_vicente",
+      "nome": "Treinador Gil Vicente",
+      "tipo": "treinador",
+      "clubeId": "gil_vicente",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 24850,
+      "estilo": "equilibrado"
+    },
+    "physio_gil_vicente": {
+      "id": "physio_gil_vicente",
+      "nome": "Preparador Gil Vicente",
+      "tipo": "preparador_fisico",
+      "clubeId": "gil_vicente",
+      "licenca": "B",
+      "reputacao": 66,
+      "salarioSemanal": 8520
+    },
+    "scout_gil_vicente": {
+      "id": "scout_gil_vicente",
+      "nome": "Olheiro Gil Vicente",
+      "tipo": "olheiro",
+      "clubeId": "gil_vicente",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 7810
+    },
+    "coach_moreirense": {
+      "id": "coach_moreirense",
+      "nome": "Treinador Moreirense",
+      "tipo": "treinador",
+      "clubeId": "moreirense",
+      "licenca": "B",
+      "reputacao": 71,
+      "salarioSemanal": 24850,
+      "estilo": "equilibrado"
+    },
+    "physio_moreirense": {
+      "id": "physio_moreirense",
+      "nome": "Preparador Moreirense",
+      "tipo": "preparador_fisico",
+      "clubeId": "moreirense",
+      "licenca": "B",
+      "reputacao": 66,
+      "salarioSemanal": 8520
+    },
+    "scout_moreirense": {
+      "id": "scout_moreirense",
+      "nome": "Olheiro Moreirense",
+      "tipo": "olheiro",
+      "clubeId": "moreirense",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 7810
+    },
+    "coach_nacional": {
+      "id": "coach_nacional",
+      "nome": "Treinador Nacional",
+      "tipo": "treinador",
+      "clubeId": "nacional",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 24500,
+      "estilo": "equilibrado"
+    },
+    "physio_nacional": {
+      "id": "physio_nacional",
+      "nome": "Preparador Nacional",
+      "tipo": "preparador_fisico",
+      "clubeId": "nacional",
+      "licenca": "B",
+      "reputacao": 65,
+      "salarioSemanal": 8400
+    },
+    "scout_nacional": {
+      "id": "scout_nacional",
+      "nome": "Olheiro Nacional",
+      "tipo": "olheiro",
+      "clubeId": "nacional",
+      "licenca": "B",
+      "reputacao": 67,
+      "salarioSemanal": 7700
+    },
+    "coach_porto": {
+      "id": "coach_porto",
+      "nome": "Treinador Porto",
+      "tipo": "treinador",
+      "clubeId": "porto",
+      "licenca": "B",
+      "reputacao": 70,
+      "salarioSemanal": 24500,
+      "estilo": "equilibrado"
+    },
+    "physio_porto": {
+      "id": "physio_porto",
+      "nome": "Preparador Porto",
+      "tipo": "preparador_fisico",
+      "clubeId": "porto",
+      "licenca": "B",
+      "reputacao": 65,
+      "salarioSemanal": 8400
+    },
+    "scout_porto": {
+      "id": "scout_porto",
+      "nome": "Olheiro Porto",
+      "tipo": "olheiro",
+      "clubeId": "porto",
+      "licenca": "B",
+      "reputacao": 67,
+      "salarioSemanal": 7700
+    },
+    "coach_rio_ave": {
+      "id": "coach_rio_ave",
+      "nome": "Treinador Rio Ave",
+      "tipo": "treinador",
+      "clubeId": "rio_ave",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 24150,
+      "estilo": "equilibrado"
+    },
+    "physio_rio_ave": {
+      "id": "physio_rio_ave",
+      "nome": "Preparador Rio Ave",
+      "tipo": "preparador_fisico",
+      "clubeId": "rio_ave",
+      "licenca": "B",
+      "reputacao": 64,
+      "salarioSemanal": 8280
+    },
+    "scout_rio_ave": {
+      "id": "scout_rio_ave",
+      "nome": "Olheiro Rio Ave",
+      "tipo": "olheiro",
+      "clubeId": "rio_ave",
+      "licenca": "B",
+      "reputacao": 66,
+      "salarioSemanal": 7590
+    },
+    "coach_santa_clara": {
+      "id": "coach_santa_clara",
+      "nome": "Treinador Santa Clara",
+      "tipo": "treinador",
+      "clubeId": "santa_clara",
+      "licenca": "B",
+      "reputacao": 69,
+      "salarioSemanal": 24150,
+      "estilo": "equilibrado"
+    },
+    "physio_santa_clara": {
+      "id": "physio_santa_clara",
+      "nome": "Preparador Santa Clara",
+      "tipo": "preparador_fisico",
+      "clubeId": "santa_clara",
+      "licenca": "B",
+      "reputacao": 64,
+      "salarioSemanal": 8280
+    },
+    "scout_santa_clara": {
+      "id": "scout_santa_clara",
+      "nome": "Olheiro Santa Clara",
+      "tipo": "olheiro",
+      "clubeId": "santa_clara",
+      "licenca": "B",
+      "reputacao": 66,
+      "salarioSemanal": 7590
+    },
+    "coach_sporting_cp": {
+      "id": "coach_sporting_cp",
+      "nome": "Treinador Sporting CP",
+      "tipo": "treinador",
+      "clubeId": "sporting_cp",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 23800,
+      "estilo": "equilibrado"
+    },
+    "physio_sporting_cp": {
+      "id": "physio_sporting_cp",
+      "nome": "Preparador Sporting CP",
+      "tipo": "preparador_fisico",
+      "clubeId": "sporting_cp",
+      "licenca": "B",
+      "reputacao": 63,
+      "salarioSemanal": 8160
+    },
+    "scout_sporting_cp": {
+      "id": "scout_sporting_cp",
+      "nome": "Olheiro Sporting CP",
+      "tipo": "olheiro",
+      "clubeId": "sporting_cp",
+      "licenca": "B",
+      "reputacao": 65,
+      "salarioSemanal": 7480
+    },
+    "coach_vitoria_sc": {
+      "id": "coach_vitoria_sc",
+      "nome": "Treinador Vitoria SC",
+      "tipo": "treinador",
+      "clubeId": "vitoria_sc",
+      "licenca": "B",
+      "reputacao": 68,
+      "salarioSemanal": 23800,
+      "estilo": "equilibrado"
+    },
+    "physio_vitoria_sc": {
+      "id": "physio_vitoria_sc",
+      "nome": "Preparador Vitoria SC",
+      "tipo": "preparador_fisico",
+      "clubeId": "vitoria_sc",
+      "licenca": "B",
+      "reputacao": 63,
+      "salarioSemanal": 8160
+    },
+    "scout_vitoria_sc": {
+      "id": "scout_vitoria_sc",
+      "nome": "Olheiro Vitoria SC",
+      "tipo": "olheiro",
+      "clubeId": "vitoria_sc",
+      "licenca": "B",
+      "reputacao": 65,
+      "salarioSemanal": 7480
+    }
+  }
+}

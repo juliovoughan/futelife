@@ -1,0 +1,39 @@
+{
+  "version": "2026_world_v1",
+  "id": "primeira_liga",
+  "nome": "Primeira Liga",
+  "pais": "Portugal",
+  "nivelPiramide": 1,
+  "temporada": "2024/25",
+  "formato": {
+    "tipo": "pontos_corridos",
+    "clubes": 18,
+    "turnos": 2,
+    "pontosVitoria": 3,
+    "pontosEmpate": 1
+  },
+  "regras": {
+    "rebaixamento": 3,
+    "vagasContinentais": 5
+  },
+  "clubesIds": [
+    "avs",
+    "arouca",
+    "benfica",
+    "boavista",
+    "braga",
+    "casa_pia",
+    "estoril",
+    "estrela_amadora",
+    "famalicao",
+    "farense",
+    "gil_vicente",
+    "moreirense",
+    "nacional",
+    "porto",
+    "rio_ave",
+    "santa_clara",
+    "sporting_cp",
+    "vitoria_sc"
+  ]
+}

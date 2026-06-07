@@ -1,0 +1,41 @@
+{
+  "version": "2026_world_v1",
+  "id": "la_liga",
+  "nome": "La Liga",
+  "pais": "Espanha",
+  "nivelPiramide": 1,
+  "temporada": "2024/25",
+  "formato": {
+    "tipo": "pontos_corridos",
+    "clubes": 20,
+    "turnos": 2,
+    "pontosVitoria": 3,
+    "pontosEmpate": 1
+  },
+  "regras": {
+    "rebaixamento": 3,
+    "vagasContinentais": 6
+  },
+  "clubesIds": [
+    "alaves",
+    "athletic_club",
+    "atletico_madrid",
+    "barcelona",
+    "celta_vigo",
+    "espanyol",
+    "getafe",
+    "girona",
+    "las_palmas",
+    "leganes",
+    "mallorca",
+    "osasuna",
+    "rayo_vallecano",
+    "real_betis",
+    "real_madrid",
+    "real_sociedad",
+    "sevilla",
+    "valencia",
+    "valladolid",
+    "villarreal"
+  ]
+}

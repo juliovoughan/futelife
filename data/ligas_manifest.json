@@ -1,0 +1,48 @@
+{
+  "version": "2024_25_v1",
+  "defaultMode": "minha_liga",
+  "ligas": [
+    {
+      "id": "premier_league",
+      "nome": "Premier League",
+      "pais": "Inglaterra",
+      "temporada": "2024/25",
+      "file": "premier_league.json"
+    },
+    {
+      "id": "la_liga",
+      "nome": "La Liga",
+      "pais": "Espanha",
+      "temporada": "2024/25",
+      "file": "la_liga.json"
+    },
+    {
+      "id": "brasileirao",
+      "nome": "Brasileirao",
+      "pais": "Brasil",
+      "temporada": "2024",
+      "file": "brasileirao.json"
+    },
+    {
+      "id": "bundesliga",
+      "nome": "Bundesliga",
+      "pais": "Alemanha",
+      "temporada": "2024/25",
+      "file": "bundesliga.json"
+    },
+    {
+      "id": "serie_a",
+      "nome": "Serie A",
+      "pais": "Italia",
+      "temporada": "2024/25",
+      "file": "serie_a.json"
+    },
+    {
+      "id": "primeira_liga",
+      "nome": "Primeira Liga",
+      "pais": "Portugal",
+      "temporada": "2024/25",
+      "file": "primeira_liga.json"
+    }
+  ]
+}

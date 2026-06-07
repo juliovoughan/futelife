@@ -1,0 +1,45 @@
+{
+  "version": "2026_world_v1",
+  "id": "copa_brasil",
+  "nome": "Copa do Brasil",
+  "pais": "Brasil",
+  "formato": {
+    "tipo": "mata_mata",
+    "idaVolta": false,
+    "fases": [
+      "primeira_fase",
+      "segunda_fase",
+      "oitavas",
+      "quartas",
+      "semifinal",
+      "final"
+    ]
+  },
+  "participantes": {
+    "regra": "clubes_do_pais",
+    "pais": "Brasil",
+    "minimo": 16
+  },
+  "clubesIds": [
+    "atletico_go",
+    "atletico_mg",
+    "athletico_pr",
+    "bahia",
+    "botafogo",
+    "corinthians",
+    "criciuma",
+    "cruzeiro",
+    "cuiaba",
+    "flamengo",
+    "fluminense",
+    "fortaleza",
+    "gremio",
+    "internacional",
+    "juventude",
+    "palmeiras",
+    "red_bull_bragantino",
+    "sao_paulo",
+    "vasco",
+    "vitoria"
+  ]
+}

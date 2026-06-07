@@ -1,0 +1,35 @@
+{
+  "version": "2026_world_v1",
+  "nacionalidades": {
+    "ALE": {
+      "file": "jogadores/ale.json",
+      "version": "2026_world_v1",
+      "total": 432
+    },
+    "BRA": {
+      "file": "jogadores/brasil.json",
+      "version": "2026_world_v1",
+      "total": 480
+    },
+    "ESP": {
+      "file": "jogadores/espanha.json",
+      "version": "2026_world_v1",
+      "total": 480
+    },
+    "ING": {
+      "file": "jogadores/ing.json",
+      "version": "2026_world_v1",
+      "total": 480
+    },
+    "ITA": {
+      "file": "jogadores/italia.json",
+      "version": "2026_world_v1",
+      "total": 480
+    },
+    "POR": {
+      "file": "jogadores/portugal.json",
+      "version": "2026_world_v1",
+      "total": 432
+    }
+  }
+}

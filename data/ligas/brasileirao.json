@@ -1,0 +1,41 @@
+{
+  "version": "2026_world_v1",
+  "id": "brasileirao",
+  "nome": "Brasileirao",
+  "pais": "Brasil",
+  "nivelPiramide": 1,
+  "temporada": "2024",
+  "formato": {
+    "tipo": "pontos_corridos",
+    "clubes": 20,
+    "turnos": 2,
+    "pontosVitoria": 3,
+    "pontosEmpate": 1
+  },
+  "regras": {
+    "rebaixamento": 4,
+    "vagasContinentais": 6
+  },
+  "clubesIds": [
+    "atletico_go",
+    "atletico_mg",
+    "athletico_pr",
+    "bahia",
+    "botafogo",
+    "corinthians",
+    "criciuma",
+    "cruzeiro",
+    "cuiaba",
+    "flamengo",
+    "fluminense",
+    "fortaleza",
+    "gremio",
+    "internacional",
+    "juventude",
+    "palmeiras",
+    "red_bull_bragantino",
+    "sao_paulo",
+    "vasco",
+    "vitoria"
+  ]
+}
