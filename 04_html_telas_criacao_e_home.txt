@@ -1,0 +1,1224 @@
+
+// ─── CALCULATE OVERALL (OVR) ────────────────────────────────
+/**
+ * calculateOverall(playerObj) — standalone
+ * playerObj: { posicao: 'CF'|'ALE'|'SA'|'MC'|'MAO'|'VOL'|'MAE'|'CB'|'LD'|'LE'|'GOL',
+ *              grupoPos: 'ATA'|'MEI'|'DEF'|'GOL',
+ *              attrs: { finalizacao:85, drible:70, ... } }
+ * returns integer OVR 0-99
+ */
+function calculateOverall(playerObj) {
+  const s  = playerObj.attrs || {};
+  const pos = playerObj.posicao || playerObj.grupoPos || 'ATA';
+
+  // Pesos por posição (totais = 1.0 exato, distribuição dos restantes é flat)
+  const PESOS = {
+    // Atacantes
+    CF:  { finalizacao:.20, drible:.15, velocidade:.15, aceleracao:.10, controleBola:.10, posicao:.10, reacoes:.06, chuteLongo:.05, forca:.05, curva:.04 },
+    ALE: { velocidade:.18, aceleracao:.12, drible:.15, cruzamento:.10, passeCurto:.10, finalizacao:.12, controleBola:.08, posicao:.07, reacoes:.05, curva:.03 },
+    SA:  { passeCurto:.15, reacoes:.15, drible:.15, posicao:.12, controleBola:.10, finalizacao:.10, aceleracao:.08, velocidade:.07, curva:.05, chuteLongo:.03 },
+    // Meias
+    MC:  { passeCurto:.15, drible:.10, tackle:.10, posicao:.12, resistencia:.10, reacoes:.10, passeLongo:.10, controleBola:.10, aceleracao:.07, velocidade:.06 },
+    MAO: { passeCurto:.15, reacoes:.15, drible:.15, posicao:.12, controleBola:.12, finalizacao:.10, aceleracao:.07, velocidade:.07, curva:.05, passeLongo:.02 },
+    VOL: { tackle:.20, posicao:.15, resistencia:.15, passeLongo:.10, forca:.10, reacoes:.08, passeCurto:.08, velocidade:.07, aceleracao:.05, cabecio:.02 },
+    MAE: { passeCurto:.14, drible:.12, resistencia:.12, posicao:.12, reacoes:.10, tackle:.10, velocidade:.09, aceleracao:.08, controleBola:.08, cruzamento:.05 },
+    // Defensores
+    CB:  { tackle:.20, cabecio:.15, forca:.15, posicao:.12, salto:.10, resistencia:.10, velocidade:.07, aceleracao:.06, passeLongo:.03, passeCurto:.02 },
+    LD:  { velocidade:.15, cruzamento:.15, tackle:.15, aceleracao:.12, posicao:.10, resistencia:.10, passeCurto:.08, drible:.07, forca:.05, cabecio:.03 },
+    LE:  { velocidade:.15, cruzamento:.15, tackle:.15, aceleracao:.12, posicao:.10, resistencia:.10, passeCurto:.08, drible:.07, forca:.05, cabecio:.03 },
+    // Goleiro
+    GOL: { diving:.18, handling:.18, reflexosGK:.18, posicaoGK:.15, velocidadeGK:.10, chutaGK:.08, forca:.05, salto:.04, resistencia:.02, agilidade:.02 }
+  };
+
+  const pesos = PESOS[pos] || PESOS.CF;
+
+  // Média ponderada 100% — sem contaminação de atributos irrelevantes
+  // Os pesos já somam 1.0 por posição (normalizado abaixo por segurança)
+  let totalPeso = 0, somaP = 0;
+  Object.entries(pesos).forEach(([k,w]) => {
+    somaP    += (s[k]||0) * w;
+    totalPeso += w;
+  });
+  // Normalizar caso os pesos não somem exatamente 1.0
+  const mediaPond = totalPeso > 0 ? somaP / totalPeso : 50;
+
+  // Bônus de posição: +2 se o jogador tem o atributo principal >= 75
+  const atPrincipal = Object.keys(pesos)[0]; // atributo de maior peso
+  const bonusPos = (s[atPrincipal]||0) >= 75 ? 2 : 0;
+
+  return Math.min(99, Math.max(1, Math.round(mediaPond + bonusPos)));
+}
+
+// ─── STATE ───────────────────────────────────────────────────
+
+let G = null;
+const SAVE_KEY = 'futelife_save'; // chave FIXA — nunca muda com versão
+const SAVE_VERSION = 11;
+
+const newState = () => ({
+  versao:11, criado:Date.now(), lastSave:Date.now(),
+  semanaAtual:1, ano:2024, rodada:1,
+  nome:'', perfil:'', idade:0, grupoPos:'', posicao:'',
+  modo:'', temEmpresario:false, formacao:'', potencial:0,
+  nacionalidade:'BRA',  // key da NACIONALIDADES
+  clube:'', liga:'', salario:0, contratoFim:0, tipoContrato:'',
+  energia:80, moral:70, fama:5, dinheiro:0, saude:100,
+  gols:0, assists:0, jogos:0, cartoes:0,
+  attrs:{}, ovr:50, calendario:[], noticias:[], skills:[],
+  treinoHoje:0, energeticoHoje:0, energeticoSemana:0, inventario:{},
+  camisa:null, camisaPedida:null,
+  relacionamento:null, filhos:0, partidaAtual:null,
+  moradia:'simples', carro:null,
+  familia:{ estado:'solteiro', filhos:0 },
+  despesasSurpresa:[], impostosPagos:0, ultimaDespesaSurpresaAno:null,
+  // Feat 1: Entrosamento
+  entrosamento:30,          // 0-100, relação com o grupo
+  jogosSeguidos:0,          // partidas no mesmo clube (aumenta entrosamento)
+  // Feat 3: Arquétipos / Talentos
+  arquetipo:null,           // key do arquétipo escolhido
+  talentos:[],              // lista de talentos desbloqueados
+  pontosArquetipo:0,        // pontos para gastar em talentos
+  // Feat 4: Auge / Lesões
+  emLesao:false,            // true = jogador lesionado
+  semanasLesao:0,           // semanas restantes de lesão
+  lesaoTipo:null,           // descrição da lesão
+  auge:false,              // true = está no período de auge (24-29)
+  // Feat 5: Modo Treinador
+  promessaEpoca:null,       // { meta, prazoAno, cumprida }
+  palestraUsada:false,      // usou palestra no intervalo esta partida
+  // CONTRATOS
+  contrato: null,           // { salario, anos, bonus, clausula, clube, liga }
+  historico_contratos: [],  // array de contratos anteriores
+  // AGENTE
+  tipoAgente: 'nenhum',    // 'nenhum' | 'amigo' | 'profissional' | 'super'
+  furos: [],                // janelas de oportunidade ativas
+  rumores: [],              // sondagens fora da janela de transferencias
+  semContratoDesde: null,   // ano em que entrou em passes livres
+  carreiraJogadorEncerrada: false,
+  historicoCarreira: [],
+  midia: { seguidores:0, entrevistas:0, patrocinios:[], redesEventos:[], ultimaAcaoSemana:null },
+  tabelaLiga: null,
+  resultadosLiga: {},
+  rodadaLigaSimulada: 0,
+  clubeStatus: { confiancaGrupo:55, apoioTorcida:55, apoioDiretoria:55, derrotasSeguidas:0, vitoriasSeguidas:0 },
+  taticaTreinador: { formacao:null, estilo:'equilibrado' },
+  elencoClube: [],
+  licencaTreinador: { nivel:'C', cursoAtivo:null, historicoCursos:[], ultimoPedidoSemana:null },
+  ultimoObjetivoDiretoriaCumprido: false,
+  orcamentoClube: 0,
+  mercadoTreinador: { chave:null, candidatos:[] },
+  movsPlantel: { chave:null, usados:0 },
+  configSim: { modo:'minha_liga', ligasAtivas:[] },
+  // OBJETIVOS DE CONTRATO
+  objetivoAtivo: null,      // { descricao, meta, progresso, tipo, prazo, clubeInteressado, ligaInteressada }
+  // STATS ACUMULADAS (para objetivos)
+  statsPartida: { golsSofridos:0, defesas:0, tackles:0, rematesTotal:0, rematesToGol:0 },
+  // SISTEMA DE REUNIÃO PRÉ-JOGO (Feat 6)
+  // Status globais — crescem com jogos e treinos específicos
+  lideranca: 5,       // 0-20: multiplica bônus e duração de buffs
+  compostura: 5,      // 0-20: reduz chance de falha crítica sob pressão
+  // Buff ativo da reunião (só dura a partida atual)
+  buffReuniao: null,  // { tipo, bonus, turnosRestantes, label }
+  reuniaoFeita: false,
+});
+
+// ─── FASE 12: DATABASE GLOBAL / INDEXEDDB ─────────────────────────────
+const DB_NAME = 'futelife_db';
+const DB_VERSION = 2;
+const DB_BASE_STORES = ['jogadores_base','clubes_base','staff_base','ligas_base','copas_base','base_meta'];
+const DB_STATE_STORES = ['jogadores_state','clubes_state','staff_state','ligas_state','copas_state','save','config_sim'];
+const DB_STORES = [...DB_BASE_STORES, ...DB_STATE_STORES];
+let _dbConn = null;
+let GLOBAL_BASES = {};
+let GLOBAL_STATES = {};
+let CONFIG_SIM = { modo:'minha_liga', ligasAtivas:[] };
+let WORLD_MANIFEST = null;
+
+const ASSET_MANIFEST_FALLBACK = {
+  version:'fase13_preview_v2_inline',
+  optional:true,
+  fallbackMode:'css-icons',
+  basePath:'assets/img/',
+  assets:[
+    { id:'bg_create_pitch', path:'backgrounds/Pitch2.png', status:'ready' },
+    { id:'bg_home_stadium', path:'backgrounds/Pitch1.png', status:'ready' },
+    { id:'bg_match_day', path:'backgrounds/Pitch1.png', status:'ready' },
+    { id:'bg_match_night', path:'backgrounds/Pitch2.png', status:'ready' },
+    { id:'bg_match_dusk', path:'backgrounds/Pitch3.png', status:'ready' },
+    { id:'bg_match_pitch', path:'backgrounds/Pitch3.png', status:'fallback' },
+    { id:'bg_match_tunnel', path:'backgrounds/tunnel.png', status:'ready' },
+    { id:'bg_media_room', path:'backgrounds/media_room1.png', status:'ready' },
+    { id:'bg_media_room_alt', path:'backgrounds/media_room2.png', status:'ready' },
+    { id:'bg_training_ground', path:'backgrounds/training_ground1.png', status:'ready' },
+    { id:'bg_training_ground_alt1', path:'backgrounds/training_ground2.png', status:'ready' },
+    { id:'bg_training_ground_alt2', path:'backgrounds/training_ground3.png', status:'ready' },
+    { id:'ui_ball_mark', path:'ui/Ball.png', status:'ready' },
+    { id:'ui_news_flash', path:'ui/News.png', status:'ready' },
+    { id:'life_simple_room', path:'lifestyle/simple_room1.png', status:'ready' },
+    { id:'life_simple_room_alt', path:'lifestyle/simple_room2.png', status:'ready' },
+    { id:'life_apartment', path:'lifestyle/apartament_room1.png', status:'ready' },
+    { id:'life_apartment_alt', path:'lifestyle/apartament_room2.png', status:'ready' },
+    { id:'life_house', path:'lifestyle/house_room1.png', status:'ready' },
+    { id:'life_house_alt', path:'lifestyle/house_room2.png', status:'ready' },
+    { id:'life_mansion', path:'lifestyle/mansion1.png', status:'ready' },
+    { id:'life_mansion_alt', path:'lifestyle/mansion2.png', status:'ready' },
+    { id:'player_avatar_generic', path:null, status:'pending' },
+    { id:'coach_avatar_generic', path:null, status:'pending' },
+  ]
+};
+let ASSETS = { manifest:ASSET_MANIFEST_FALLBACK, byId:{} };
+
+function normalizarAssetManifest(manifest) {
+  const safe = manifest && Array.isArray(manifest.assets) ? manifest : ASSET_MANIFEST_FALLBACK;
+  const basePath = safe.basePath || 'assets/img/';
+  const byId = {};
+  safe.assets.forEach(a => {
+    if (!a || !a.id) return;
+    byId[a.id] = { ...a, url:a.path ? basePath + a.path : null };
+  });
+  ASSETS = { manifest:safe, byId };
+  return ASSETS;
+}
+
+async function carregarAssetsOpcionais() {
+  normalizarAssetManifest(ASSET_MANIFEST_FALLBACK);
+  if (location.protocol !== 'file:') {
+    try {
+      const resp = await fetch('assets/assets_manifest.json', { cache:'no-store' });
+      if (resp.ok) normalizarAssetManifest(await resp.json());
+      else normalizarAssetManifest({ ...ASSET_MANIFEST_FALLBACK, assets:[] });
+    } catch(e) {
+      normalizarAssetManifest({ ...ASSET_MANIFEST_FALLBACK, assets:[] });
+    }
+  }
+  aplicarAssetsVisuais();
+}
+
+function assetUrl(id) {
+  return ASSETS?.byId?.[id]?.url || null;
+}
+
+function assetUrlAny(ids) {
+  for (const id of ids) {
+    const url = assetUrl(id);
+    if (url) return url;
+  }
+  return null;
+}
+
+function setAssetBg(selector, id, soft = true) {
+  const el = document.querySelector(selector);
+  const url = assetUrl(id);
+  if (!el || !url) return;
+  el.style.setProperty('--asset-bg', 'url("'+url+'")');
+  el.classList.add('asset-bg');
+  if (soft) el.classList.add('asset-bg-soft');
+}
+
+function aplicarAssetsVisuais() {
+  const createHero = document.querySelector('.create-hero');
+  const createUrl = assetUrl('bg_create_pitch');
+  if (createHero && createUrl) {
+    createHero.style.setProperty('--asset-bg-create', 'url("'+createUrl+'")');
+    createHero.classList.add('asset-create-bg');
+  }
+  setAssetBg('#screen-home', 'bg_home_stadium', true);
+  setAssetBg('#screen-treino', 'bg_training_ground', true);
+  setAssetBg('#screen-midia', 'bg_media_room', true);
+  setAssetBg('#screen-partida', 'bg_match_pitch', true);
+  aplicarTreinoHero();
+}
+
+function assetCardHtml(id, alt) {
+  const url = assetUrl(id);
+  return url ? '<img class="asset-card-img" src="'+url+'" alt="'+(alt||'Imagem do FuteLife')+'" loading="lazy" onerror="this.remove()">' : '';
+}
+
+function assetMoradiaId(tipo) {
+  return tipo === 'apartamento' ? pickRandom(['life_apartment','life_apartment_alt'])
+    : tipo === 'casa' ? pickRandom(['life_house','life_house_alt'])
+    : tipo === 'mansao' ? pickRandom(['life_mansion','life_mansion_alt'])
+    : pickRandom(['life_simple_room','life_simple_room_alt']);
+}
+
+function assetTreinoId() {
+  return pickRandom(['bg_training_ground','bg_training_ground_alt1','bg_training_ground_alt2']);
+}
+
+function assetPartidaId(semana = null) {
+  const rodada = Number(semana?.rodada || G?.rodada || G?.semanaAtual || 1);
+  if (rodada % 3 === 0) return 'bg_match_day';
+  if (rodada % 3 === 1) return 'bg_match_dusk';
+  return 'bg_match_night';
+}
+
+function aplicarPartidaAsset(semana = null) {
+  const el = document.querySelector('#screen-partida');
+  const id = assetPartidaId(semana);
+  const url = assetUrlAny([id, 'bg_match_pitch']);
+  if (!el || !url) return;
+  el.style.setProperty('--asset-bg', 'url("'+url+'")');
+  el.classList.add('asset-bg','asset-bg-soft');
+}
+
+function aplicarReuniaoAsset() {
+  const el = document.getElementById('reuniao-container');
+  const url = assetUrlAny(['bg_match_tunnel', 'bg_match_dusk', 'bg_match_pitch']);
+  if (!el || !url) return;
+  el.style.setProperty('--asset-bg', 'url("'+url+'")');
+  el.classList.add('reuniao-asset');
+}
+
+function aplicarTreinoHero() {
+  const hero = document.getElementById('treino-asset-hero');
+  const url = assetUrlAny([assetTreinoId(), 'bg_training_ground']);
+  if (!hero || !url) return;
+  hero.style.setProperty('--asset-bg', 'url("'+url+'")');
+  hero.classList.add('asset-hero-ready');
+}
+
+function midiaNoticiasCombinadas() {
+  if (!G) return [];
+  const base = (G.noticias||[]).map((n, i) => ({
+    id:'n_'+i, icon:n.icon||'INFO', titulo:String(n.texto||'Noticia do clube'),
+    texto:String(n.texto||'Noticia do clube'), semana:n.semana||G.semanaAtual||1, ano:n.ano||G.ano||2024,
+    origem:categoriaNoticiaMidia(n).label
+  }));
+  const redes = (G.midia?.redesEventos||[]).map((e, i) => ({
+    id:'r_'+i, icon:'NET', titulo:String(e.titulo||'Rede social'),
+    texto:String(e.titulo||'Evento de rede social'), semana:e.semana||G.semanaAtual||1, ano:e.ano||G.ano||2024,
+    origem:'Redes'
+  }));
+  return base.concat(redes).sort((a,b) => (b.ano-a.ano) || (b.semana-a.semana));
+}
+
+function categoriaNoticiaMidia(n) {
+  const icon = String(n?.icon || '').toUpperCase();
+  const texto = String(n?.texto || '').toLowerCase();
+  if (['RUMOR','SOND'].includes(icon) || texto.includes('rumor') || texto.includes('sondagem')) return { key:'rumor', label:'Rumor' };
+  if (['MID','VIR','FAN'].includes(icon) || texto.includes('entrevista') || texto.includes('viral')) return { key:'midia', label:'Midia' };
+  if (['PAT','ADD','OUT','DIR','LIC','TRE'].includes(icon) || texto.includes('contratou') || texto.includes('dispensou')) return { key:'clube', label:'Clube' };
+  if (['⚽','🎯','🏆','😕','❌','✅','🌟'].includes(n?.icon)) return { key:'player', label:'Jogador' };
+  return { key:'noticia', label:'Noticia' };
+}
+
+function abrirNoticiaMidia(id) {
+  const item = midiaNoticiasCombinadas().find(n => n.id === id) || midiaNoticiasCombinadas()[0];
+  if (!item) { showToast('Nenhuma noticia disponivel.'); return; }
+  const img = assetCardHtml('ui_news_flash', 'Noticia FuteLife');
+  showPopup({
+    icon:item.icon,
+    titulo:item.origem+' - Semana '+item.semana,
+    corpo:img + '<div class="asset-popup-text"><b>'+item.titulo+'</b>\n\n'+item.texto+'\n\nAno '+item.ano+'</div>',
+    botoes:[{icon:'OK', text:'Fechar', acao:closePopup}]
+  });
+}
+
+function renderMediaFeaturedNews() {
+  const item = midiaNoticiasCombinadas()[0];
+  const img = assetUrl('ui_news_flash');
+  if (!item) return '<div class="empty-notice">Nenhuma noticia registrada ainda.</div>';
+  return '<button class="media-news-feature" onclick="abrirNoticiaMidia(&quot;'+item.id+'&quot;)">'+
+    (img ? '<img src="'+img+'" alt="Noticia em destaque" loading="lazy" onerror="this.remove()">' : '')+
+    '<span class="media-news-overlay">'+
+      '<span class="media-news-kicker">'+item.origem+' - Semana '+item.semana+', '+item.ano+'</span>'+
+      '<span class="media-news-title">'+item.titulo+'</span>'+
+      '<span class="media-news-cta">Abrir noticia</span>'+
+    '</span>'+
+  '</button>';
+}
+
+function renderMediaNewsArchive(limit = 12) {
+  const items = midiaNoticiasCombinadas().slice(0, limit);
+  if (!items.length) return '<div class="empty-notice">Sem noticias arquivadas.</div>';
+  return items.map(item => '<button class="media-news-row" onclick="abrirNoticiaMidia(&quot;'+item.id+'&quot;)">'+
+    '<span class="news-icon">'+item.icon+'</span><span><b>'+item.titulo+'</b><small>'+item.origem+' - Semana '+item.semana+', '+item.ano+'</small></span>'+
+  '</button>').join('');
+}
+
+function noticiaIconeEhMidia(icon) {
+  return ['MID','NET','RUMOR','SOND','PAT','VIR','TRE','ADD','OUT','EGO','DIR','LIC'].includes(String(icon||'').toUpperCase()) || ['⚽','🎯','🏆','📉','✈️','🤝','❌','✅','🌟'].includes(icon);
+}
+const DB = {
+  async open() {
+    if (_dbConn) return _dbConn;
+    if (!('indexedDB' in window)) throw new Error('IndexedDB indisponivel');
+    _dbConn = await new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        DB_STORES.forEach(store => { if (!db.objectStoreNames.contains(store)) db.createObjectStore(store); });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    return _dbConn;
+  },
+  async get(store, key) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(store, 'readonly').objectStore(store).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  },
+  async set(store, key, value) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(store, 'readwrite').objectStore(store).put(value, key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  },
+  async getAll(store) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, 'readonly');
+      const os = tx.objectStore(store);
+      const req = os.getAllKeys();
+      req.onsuccess = async () => {
+        const keys = req.result || [];
+        const vals = await Promise.all(keys.map(k => new Promise((res, rej) => {
+          const r = os.get(k);
+          r.onsuccess = () => res({ key:k, valor:r.result });
+          r.onerror = () => rej(r.error);
+        })));
+        resolve(vals);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  },
+  async delete(store, key) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(store, 'readwrite').objectStore(store).delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  },
+  async clear(store) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(store, 'readwrite').objectStore(store).clear();
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+};
+
+function mostrarBootLoading(texto = 'Carregando mundo do futebol...') {
+  let el = document.getElementById('boot-loading');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'boot-loading';
+    el.style.cssText = 'position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;background:#07120b;color:#f3fff5;font:700 14px system-ui;letter-spacing:.08em;text-transform:uppercase;';
+    el.innerHTML = '<div style="padding:18px 22px;border:1px solid rgba(120,255,160,.25);background:rgba(12,30,18,.86);border-radius:8px;box-shadow:0 18px 60px rgba(0,0,0,.35)"></div>';
+    document.body.appendChild(el);
+  }
+  el.firstChild.textContent = texto;
+}
+function ocultarBootLoading() {
+  document.getElementById('boot-loading')?.remove();
+}
+async function fetchJsonData(file) {
+  const resp = await fetch('data/'+file, { cache:'no-store' });
+  if (!resp.ok) throw new Error('HTTP '+resp.status+' em '+file);
+  return await resp.json();
+}
+function worldManifestFallback() {
+  return {
+    version:'legacy_inline_v1',
+    schemaVersion:0,
+    jogadores:{ nacionalidades:{} },
+    clubes:null,
+    staff:null,
+    ligas:GLOBAL_LEAGUE_SEEDS.map(seed => ({ id:seed.id, nome:seed.nome, pais:seed.pais, temporada:seed.temporada, file:seed.id+'.json', version:'legacy_'+seed.id })),
+    copas:[],
+    compatibility:{ legacyLeagueFiles:true, baseStateStores:true }
+  };
+}
+async function carregarWorldManifestArquivo() {
+  try {
+    const manifest = await fetchJsonData('world_manifest.json');
+    return manifest && manifest.schemaVersion >= 1 ? manifest : worldManifestFallback();
+  } catch(e) {
+    return worldManifestFallback();
+  }
+}
+function playerOvrCompat(p) {
+  if (Number.isFinite(Number(p.ovr))) return Math.max(1, Math.min(99, Math.round(Number(p.ovr))));
+  const a = p.attrs || {};
+  const vals = Object.values(a).map(Number).filter(Number.isFinite);
+  if (!vals.length) return 60;
+  return Math.max(1, Math.min(99, Math.round(vals.reduce((s,v)=>s+v,0) / vals.length)));
+}
+function jogadorBaseParaCompat(p) {
+  if (!p) return null;
+  const ovr = playerOvrCompat(p);
+  return {
+    id:p.id, nome:p.nome || 'Jogador', pos:p.pos || 'MC', ovr,
+    idade:Math.max(16, Math.min(45, Math.round(Number(p.idade)||24))),
+    potencial:Math.max(1, Math.min(99, Math.round(Number(p.potencial)||ovr))),
+    valor:Math.max(0, Math.round(Number(p.valorMercado ?? p.valor)||0)),
+    salario:Math.max(0, Math.round(Number(p.salarioSemanal ?? p.salario)||0)),
+    contratoFim:Math.max(2024, Math.round(Number(p.contratoFim)||2026)),
+    nacionalidade:p.nacionalidade || 'GLB',
+    lesao:p.lesao || null,
+    fonte:p.fonte || 'base'
+  };
+}
+async function getEntidadeMesclada(baseStore, stateStore, id) {
+  const base = await DB.get(baseStore, id).catch(()=>null);
+  const state = await DB.get(stateStore, id).catch(()=>null);
+  if (!base && !state) return null;
+  return { ...(base||{}), ...(state||{}) };
+}
+async function setEntidadeState(stateStore, id, patch) {
+  const atual = await DB.get(stateStore, id).catch(()=>({}));
+  await DB.set(stateStore, id, { ...(atual||{}), ...(patch||{}), id });
+}
+async function getJogador(id) { return await getEntidadeMesclada('jogadores_base','jogadores_state',id); }
+async function getClube(id) { return await getEntidadeMesclada('clubes_base','clubes_state',id); }
+async function getStaff(id) { return await getEntidadeMesclada('staff_base','staff_state',id); }
+async function getLigaBase(id) { return await DB.get('ligas_base', id).catch(()=>null); }
+async function getCopaBase(id) { return await DB.get('copas_base', id).catch(()=>null); }
+async function buscarJogadoresBase(filtros = {}) {
+  const all = await DB.getAll('jogadores_base').catch(()=>[]);
+  const pos = filtros.pos ? String(filtros.pos).toUpperCase() : null;
+  const nacionalidade = filtros.nacionalidade ? String(filtros.nacionalidade).toUpperCase() : null;
+  const minOvr = Number(filtros.minOvr ?? 0);
+  const maxOvr = Number(filtros.maxOvr ?? 99);
+  const clubeId = filtros.clubeId || null;
+  return all.map(x=>x.valor).filter(p => {
+    const ovr = playerOvrCompat(p);
+    if (pos && String(p.pos||'').toUpperCase() !== pos) return false;
+    if (nacionalidade && String(p.nacionalidade||'').toUpperCase() !== nacionalidade) return false;
+    if (clubeId && p.clubeId !== clubeId) return false;
+    return ovr >= minOvr && ovr <= maxOvr;
+  }).slice(0, Math.max(1, Number(filtros.limit)||80));
+}
+async function importarWorldBaseSeNecessario() {
+  WORLD_MANIFEST = await carregarWorldManifestArquivo();
+  if (WORLD_MANIFEST.schemaVersion < 1) return false;
+  const prev = await DB.get('base_meta','world').catch(()=>null) || {};
+  const prevFiles = prev.files || {};
+  const nextFiles = {};
+  const changed = (key, version) => {
+    nextFiles[key] = version || WORLD_MANIFEST.version;
+    return prevFiles[key] !== nextFiles[key];
+  };
+  let imported = false;
+
+  if (WORLD_MANIFEST.clubes && changed('clubes', WORLD_MANIFEST.clubes.version)) {
+    const data = await fetchJsonData(WORLD_MANIFEST.clubes.file);
+    await DB.clear('clubes_base');
+    for (const c of Object.values(data.clubes||{})) await DB.set('clubes_base', c.id, c);
+    imported = true;
+  }
+  if (WORLD_MANIFEST.staff && changed('staff', WORLD_MANIFEST.staff.version)) {
+    const data = await fetchJsonData(WORLD_MANIFEST.staff.file);
+    await DB.clear('staff_base');
+    for (const s of Object.values(data.staff||{})) await DB.set('staff_base', s.id, s);
+    imported = true;
+  }
+  const idxInfo = WORLD_MANIFEST.jogadores?.index;
+  const natInfos = WORLD_MANIFEST.jogadores?.nacionalidades || {};
+  let playerKeysChanged = changed('jogadores_index', idxInfo?.version || WORLD_MANIFEST.version);
+  Object.entries(natInfos).forEach(([nat, info]) => { if (changed('jogadores_'+nat, info.version)) playerKeysChanged = true; });
+  if (playerKeysChanged) {
+    await DB.clear('jogadores_base');
+    for (const [nat, info] of Object.entries(natInfos)) {
+      const data = await fetchJsonData(info.file);
+      for (const p of Object.values(data.jogadores||{})) await DB.set('jogadores_base', p.id, p);
+    }
+    imported = true;
+  }
+  let ligasChanged = false;
+  (WORLD_MANIFEST.ligas||[]).forEach(l => { if (changed('liga_'+l.id, l.version)) ligasChanged = true; });
+  if (ligasChanged) {
+    await DB.clear('ligas_base');
+    for (const info of WORLD_MANIFEST.ligas||[]) {
+      const liga = await fetchJsonData(info.file);
+      await DB.set('ligas_base', liga.id || info.id, liga);
+    }
+    imported = true;
+  }
+  let copasChanged = false;
+  (WORLD_MANIFEST.copas||[]).forEach(c => { if (changed('copa_'+c.id, c.version)) copasChanged = true; });
+  if (copasChanged) {
+    await DB.clear('copas_base');
+    for (const info of WORLD_MANIFEST.copas||[]) {
+      const copa = await fetchJsonData(info.file);
+      await DB.set('copas_base', copa.id || info.id, copa);
+    }
+    imported = true;
+  }
+  if (imported || prev.version !== WORLD_MANIFEST.version) {
+    await DB.set('base_meta','world',{ version:WORLD_MANIFEST.version, schemaVersion:WORLD_MANIFEST.schemaVersion, files:nextFiles, updatedAt:Date.now() });
+  }
+  return imported;
+}
+async function montarLigaBaseCompat(ligaId) {
+  const liga = await DB.get('ligas_base', ligaId).catch(()=>null);
+  if (!liga || !Array.isArray(liga.clubesIds)) return null;
+  const clubes = [];
+  for (const clubeId of liga.clubesIds) {
+    const clube = await getClube(clubeId);
+    if (!clube) continue;
+    const elencoIds = Array.isArray(clube.elenco) ? clube.elenco : [];
+    const jogadores = [];
+    for (const pid of elencoIds) {
+      const p = await getJogador(pid);
+      const compat = jogadorBaseParaCompat(p);
+      if (compat) jogadores.push(compat);
+    }
+    const ovr = jogadores.length ? Math.round(jogadores.slice(0,11).reduce((s,p)=>s+(p.ovr||60),0) / Math.min(11,jogadores.length)) : (clube.ovrBase || 70);
+    clubes.push({
+      id:clube.id, nome:clube.nome, ovr, cidade:clube.cidade || '',
+      estadio:clube.estadio || '', torcida:clube.torcida || 0, reputacao:clube.reputacao || ovr,
+      orcamento:clube.orcamento || 0, tecnicoId:clube.tecnicoId || null, staffIds:clube.staffIds || [],
+      jogadores
+    });
+  }
+  return validarLigaBase({
+    id:liga.id || ligaId, nome:liga.nome || ligaId, pais:liga.pais || '', nivelPiramide:liga.nivelPiramide || 1,
+    temporada:liga.temporada || '2024/25', meta:{ version:liga.version || WORLD_MANIFEST?.version || 'world_base' },
+    clubes
+  });
+}
+
+function slugId(text) {
+  return String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+}
+function ligaIdAtual(liga = G?.liga) {
+  if (!liga) return null;
+  return LIGA_NOME_TO_ID[liga] || GLOBAL_LEAGUE_SEEDS.find(l => l.nome === liga || slugId(l.nome) === slugId(liga))?.id || slugId(liga);
+}
+function ligaNomePorId(id) {
+  return GLOBAL_BASES[id]?.nome || GLOBAL_LEAGUE_SEEDS.find(l=>l.id===id)?.nome || id;
+}
+function seededRand(seed) {
+  let h = 2166136261;
+  String(seed).split('').forEach(ch => { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); });
+  return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return (h>>>0) / 4294967295; };
+}
+function gerarJogadoresEstimados(clube, liga, baseOvr) {
+  const pos = ['GOL','LD','CB','CB','LE','VOL','MC','MAO','ALE','CF','ALE','GOL','CB','LD','LE','VOL','MC','MAO','ALE','CF','SA','CB','MC','ALE'];
+  const nomes = ['Lucas','Mateus','Rafael','Gabriel','Pedro','Joao','Miguel','Andre','Daniel','Bruno','Felipe','Diego','Tiago','Nicolas','Arthur','Victor','Hugo','Marco','David','Luis'];
+  const apelidos = ['Silva','Santos','Costa','Oliveira','Pereira','Almeida','Ferreira','Rodrigues','Martins','Gomes','Ribeiro','Carvalho','Mendes','Nunes','Sousa','Dias'];
+  return pos.map((p,i) => {
+    const r = seededRand(liga.id+'_'+clube.nome+'_'+i);
+    const idade = 18 + Math.floor(r()*17);
+    const ovr = Math.max(48, Math.min(92, Math.round(baseOvr + (i<11?2:-2) + (r()*12-6))));
+    const nome = nomes[Math.floor(r()*nomes.length)]+' '+apelidos[Math.floor(r()*apelidos.length)];
+    const ligaMult = liga.id === 'premier_league' ? 3.2 : liga.id === 'la_liga' ? 2.8 : liga.id === 'bundesliga' ? 2.5 : liga.id === 'serie_a' ? 2.2 : liga.id === 'primeira_liga' ? 1.45 : 1.0;
+    const sal = Math.max(1200, Math.round((1800 + Math.max(0, ovr-45)*240) * ligaMult * (idade<=21?0.82:1) / 500) * 500);
+    return { id:slugId(clube.nome+'_'+nome+'_'+i), nome, pos:p, ovr, idade, potencial:Math.max(ovr, Math.min(96, ovr+(idade<=21?12:idade<=25?6:2))), valor:ovr*ovr*1400, salario:sal, contratoFim:2025+Math.floor(r()*4), nacionalidade:liga.pais?.slice(0,3).toUpperCase()||'GLB', fonte:'estimado' };
+  });
+}
+function gerarLigaBaseFallback(seed) {
+  return {
+    id:seed.id, nome:seed.nome, pais:seed.pais, nivelPiramide:1, temporada:seed.temporada,
+    meta:{ version:'2024_25_fallback', note:'Fallback local gerado quando os JSON externos nao carregam.' },
+    clubes:seed.clubes.map((nome,i) => {
+      const clube = { id:slugId(nome), nome, ovr:Math.max(52, Math.min(90, seed.ovr + Math.max(-8, 6-Math.floor(i/2)))), cidade:'' };
+      clube.jogadores = gerarJogadoresEstimados(clube, seed, clube.ovr);
+      return clube;
+    })
+  };
+}
+async function carregarLigaBaseArquivo(info) {
+  try {
+    const resp = await fetch('data/'+info.id+'.json');
+    if (!resp.ok) throw new Error('HTTP '+resp.status);
+    return validarLigaBase(await resp.json());
+  } catch(e) {
+    return validarLigaBase(gerarLigaBaseFallback(info));
+  }
+}
+function validarLigaBase(base) {
+  const seed = GLOBAL_LEAGUE_SEEDS.find(l=>l.id===base.id) || {};
+  base.id = base.id || slugId(base.nome);
+  base.nome = base.nome || seed.nome || base.id;
+  base.temporada = base.temporada || seed.temporada || '2024/25';
+  base.clubes = Array.isArray(base.clubes) ? base.clubes : [];
+  base.clubes = base.clubes.map((c,i) => {
+    c.id = c.id || slugId(c.nome);
+    c.nome = c.nome || c.id;
+    c.ovr = Math.max(40, Math.min(99, Math.round(Number(c.ovr)||seed.ovr||70)));
+    if (!Array.isArray(c.jogadores) || c.jogadores.length < 16) c.jogadores = gerarJogadoresEstimados(c, base, c.ovr);
+    c.jogadores = c.jogadores.map((p,j) => ({
+      id:p.id || slugId(c.nome+'_'+p.nome+'_'+j), nome:p.nome || ('Jogador '+(j+1)), pos:p.pos || 'MC',
+      ovr:Math.max(1, Math.min(99, Math.round(Number(p.ovr)||c.ovr))), idade:Math.max(16, Math.min(45, Math.round(Number(p.idade)||24))),
+      potencial:Math.max(1, Math.min(99, Math.round(Number(p.potencial)||p.ovr||c.ovr))), valor:Math.max(0, Math.round(Number(p.valor)||0)),
+      salario:Math.max(0, Math.round(Number(p.salario)||0)), contratoFim:Math.max(2024, Math.round(Number(p.contratoFim)||2026)),
+      nacionalidade:p.nacionalidade || base.pais || 'Global', fonte:p.fonte || 'real'
+    }));
+    return c;
+  });
+  return base;
+}
+function aplicarBasesAoCatalogoLocal() {
+  Object.values(GLOBAL_BASES).forEach(base => {
+    LIGAS[base.nome] = { pais:base.pais || '', clubes:base.clubes.map(c=>c.nome) };
+  });
+}
+async function garantirBaseLigas() {
+  const seeds = GLOBAL_LEAGUE_SEEDS;
+  try {
+    mostrarBootLoading('Importando database mundial...');
+    await importarWorldBaseSeNecessario();
+  } catch(e) {
+    console.warn('FuteLife world DB fallback:', e);
+  }
+  for (const seed of seeds) {
+    let base = null;
+    try { base = await montarLigaBaseCompat(seed.id); } catch(e) { base = null; }
+    if (!base) {
+      try {
+        const cached = await DB.get('ligas_base', seed.id);
+        if (cached && Array.isArray(cached.clubes)) base = cached;
+      } catch(e) {}
+    }
+    if (!base) {
+      base = await carregarLigaBaseArquivo(seed);
+      try { await DB.set('ligas_base', seed.id, base); } catch(e) {}
+    }
+    GLOBAL_BASES[seed.id] = validarLigaBase(base);
+  }
+  aplicarBasesAoCatalogoLocal();
+}
+async function carregarConfigSim() {
+  try { CONFIG_SIM = await DB.get('config_sim','preferencias') || CONFIG_SIM; } catch(e) {}
+  if (!CONFIG_SIM || typeof CONFIG_SIM !== 'object') CONFIG_SIM = { modo:'minha_liga', ligasAtivas:[] };
+  if (!Array.isArray(CONFIG_SIM.ligasAtivas)) CONFIG_SIM.ligasAtivas = [];
+}
+async function salvarConfigSim() {
+  try { await DB.set('config_sim','preferencias', CONFIG_SIM); } catch(e) {}
+  if (G) { G.configSim = {...CONFIG_SIM}; saveGame(false); }
+}
+async function inicializarMundoGlobal() {
+  try {
+    await garantirBaseLigas();
+    await carregarConfigSim();
+    const states = await DB.getAll('ligas_state').catch(()=>[]);
+    states.forEach(item => { if (item?.valor?.id) GLOBAL_STATES[item.valor.id] = item.valor; });
+  } catch(e) {
+    GLOBAL_LEAGUE_SEEDS.forEach(seed => { GLOBAL_BASES[seed.id] = gerarLigaBaseFallback(seed); });
+    aplicarBasesAoCatalogoLocal();
+  }
+}
+function ligasAtivasSimulacao() {
+  const atual = ligaIdAtual();
+  if (CONFIG_SIM.modo === 'todas') return Object.keys(GLOBAL_BASES);
+  if (CONFIG_SIM.modo === 'selecionadas') return [...new Set([atual, ...CONFIG_SIM.ligasAtivas].filter(Boolean))];
+  return atual ? [atual] : [];
+}
+function persistirLigaState(ligaId) {
+  const state = GLOBAL_STATES[ligaId];
+  if (!state) return;
+  DB.set('ligas_state', ligaId, state).catch(()=>{});
+}
+function getLigaStateGlobal(ligaId, ano = G?.ano || 2024) {
+  const base = GLOBAL_BASES[ligaId];
+  if (!base) return null;
+  if (GLOBAL_STATES[ligaId]?.ano === ano) return GLOBAL_STATES[ligaId];
+  const clubes = base.clubes.map(c=>c.nome);
+  const tabela = {};
+  clubes.forEach(c => { tabela[c] = emptyTableRow(c); });
+  GLOBAL_STATES[ligaId] = { id:ligaId, liga:base.nome, ano, rodadaAtual:0, clubes, tabela, resultados:{}, transferencias:[], lesionados:[], ultimaAtualizacao:Date.now() };
+  persistirLigaState(ligaId);
+  return GLOBAL_STATES[ligaId];
+}
+function clubeOvrGlobal(ligaId, clube) {
+  const base = GLOBAL_BASES[ligaId];
+  const c = base?.clubes?.find(x => x.nome === clube);
+  if (!c) return clubeOvrEstimado(clube, ligaNomePorId(ligaId));
+  const titulares = (c.jogadores||[]).slice(0,11);
+  if (!titulares.length) return c.ovr || 70;
+  return Math.round(titulares.reduce((s,p)=>s+(p.ovr||c.ovr||70),0)/titulares.length);
+}
+function simularPlacarGlobal(ligaId, home, away) {
+  const forcaCasa = clubeOvrGlobal(ligaId, home) + rng(-5,5) + 3;
+  const forcaFora = clubeOvrGlobal(ligaId, away) + rng(-5,5);
+  const delta = forcaCasa - forcaFora;
+  return {
+    golsHome:Math.min(6, Math.max(0, Math.round(delta/15 + 1.2 + rng(-1,2)))),
+    golsAway:Math.min(6, Math.max(0, Math.round(-delta/15 + 0.8 + rng(-1,2))))
+  };
+}
+function registrarResultadoState(state, rodada, home, away, golsHome, golsAway) {
+  if (!state.resultados) state.resultados = {};
+  if (!state.resultados[rodada]) state.resultados[rodada] = {};
+  const key = home+'_'+away;
+  if (state.resultados[rodada][key]) return;
+  [home, away].forEach(c => { if (!state.tabela[c]) { state.clubes.push(c); state.tabela[c] = emptyTableRow(c); } });
+  const h = state.tabela[home], a = state.tabela[away];
+  h.j++; a.j++;
+  h.gm += golsHome; h.gc += golsAway; h.sg = h.gm - h.gc;
+  a.gm += golsAway; a.gc += golsHome; a.sg = a.gm - a.gc;
+  if (golsHome > golsAway) { h.g++; h.pts += 3; a.d++; }
+  else if (golsHome < golsAway) { a.g++; a.pts += 3; h.d++; }
+  else { h.e++; a.e++; h.pts++; a.pts++; }
+  state.resultados[rodada][key] = { home, away, golsHome, golsAway };
+  state.ultimaAtualizacao = Date.now();
+}
+function simularRodadaGlobal(ligaId, rodada, skipClube = null) {
+  const state = getLigaStateGlobal(ligaId);
+  if (!state || !rodada || (state.rodadaAtual||0) >= rodada) return;
+  const pares = gerarCalendarioRoundRobinClubes(state.clubes)[rodada-1] || [];
+  pares.forEach(({home, away}) => {
+    if (skipClube && (home === skipClube || away === skipClube)) return;
+    const p = simularPlacarGlobal(ligaId, home, away);
+    registrarResultadoState(state, rodada, home, away, p.golsHome, p.golsAway);
+  });
+  state.rodadaAtual = Math.max(state.rodadaAtual||0, rodada);
+  persistirLigaState(ligaId);
+}
+function simularSemanaGlobal(rodada) {
+  ligasAtivasSimulacao().forEach(id => simularRodadaGlobal(id, rodada, id === ligaIdAtual() ? G?.clube : null));
+}
+
+// ─── CREATE UI ───────────────────────────────────────────────
+
+let cr = { perfil:null, modo:null, grupoPos:null, posicao:null, formacao:null, empresario:false, nacionalidade:'BRA' };
+
+function selectNacionalidade(key) {
+  cr.nacionalidade = key;
+  document.querySelectorAll('[id^="cn-"]').forEach(el => el.classList.remove('sel'));
+  document.getElementById('cn-'+key)?.classList.add('sel');
+  validateCreate();
+}
+
+function selectPerfil(p) {
+  cr.perfil = p;
+  ['jogador','treinador'].forEach(x => document.getElementById('c-'+x).classList.toggle('sel', p===x));
+  document.getElementById('sub-j').classList.toggle('vis', p==='jogador');
+  document.getElementById('sub-t').classList.toggle('vis', p==='treinador');
+  document.getElementById('sub-nac').classList.add('vis');
+  // Populate nationality grid if empty
+  const grid = document.getElementById('grid-nac');
+  if (!grid.hasChildNodes()) {
+    grid.innerHTML = NACIONALIDADES.map(n =>
+      `<div class="ccard ${n.key===cr.nacionalidade?'sel':''}" id="cn-${n.key}" onclick="selectNacionalidade('${n.key}')">
+        <div style="font-size:20px">${n.label.split(' ')[0]}</div>
+        <div class="ct" style="font-size:11px">${n.label.split(' ').slice(1).join(' ')}</div>
+      </div>`
+    ).join('');
+  }
+  validateCreate();
+}
+
+function selectModo(m) {
+  cr.modo = m;
+  ['aleatorio','base'].forEach(x => document.getElementById('c-'+x).classList.toggle('sel', m===x));
+  const ib = document.getElementById('info-modo');
+  ib.style.display = 'block';
+  ib.innerHTML = m==='aleatorio'
+    ? '<b>🎲 Aleatório</b> — Rolagem decide: bom = 16-17 anos num clube médio, alto potencial. Ruim = 18 anos num clube pequeno, atributos baixos mas evolução acelerada.'
+    : '<b>🌱 Categoria Base</b> — 16 anos na base. Evolução acelerada. Pode subir antes dos 18 por desempenho.';
+  validateCreate();
+}
+
+function selectPos(grupo) {
+  cr.grupoPos = grupo; cr.posicao = null;
+  ['ATA','MEI','DEF','GOL'].forEach(x => document.getElementById('c-pos-'+x)?.classList.toggle('sel', grupo===x));
+  const sub = document.getElementById('sub-pos-esp');
+  const grid = document.getElementById('grid-pos-esp');
+  sub.style.display = 'block';
+  grid.innerHTML = POS_ESP[grupo].map(p =>
+    `<div class="ccard" id="cp-${p.key}" onclick="selectPosEsp('${p.key}')">
+      <div class="ct" style="font-size:12px">${p.label}</div><div class="cd">${p.desc}</div>
+    </div>`
+  ).join('');
+  validateCreate();
+}
+
+function selectPosEsp(key) {
+  cr.posicao = key;
+  document.querySelectorAll('[id^="cp-"]').forEach(el => el.classList.remove('sel'));
+  document.getElementById('cp-'+key)?.classList.add('sel');
+  validateCreate();
+}
+
+function selectFormacao(f) {
+  cr.formacao = f;
+  ['442','433','532','4231'].forEach(x => document.getElementById('c-f-'+x)?.classList.remove('sel'));
+  document.getElementById('c-f-'+f.replace(/-/g,''))?.classList.add('sel');
+  validateCreate();
+}
+
+function toggleEmpresario() {
+  cr.empresario = !cr.empresario;
+  document.getElementById('tog-emp').classList.toggle('on', cr.empresario);
+}
+
+function validateCreate() {
+  let ok = document.getElementById('input-nome').value.trim().length >= 2 && !!cr.perfil;
+  if (cr.perfil === 'jogador')   ok = ok && !!cr.modo && !!cr.grupoPos && !!cr.posicao;
+  if (cr.perfil === 'treinador') ok = ok && !!cr.formacao;
+  document.getElementById('btn-start').disabled = !ok;
+}
+
+// ─── START GAME ──────────────────────────────────────────────
+// BUG FIX: tela de criação é ocultada IMEDIATAMENTE, antes de qualquer lógica
+
+function startGame() {
+  // Oculta a tela de criação para sempre (não pode voltar)
+  const createEl = document.getElementById('screen-create');
+  createEl.classList.remove('active');
+  createEl.style.display = 'none';
+
+  const nome = document.getElementById('input-nome').value.trim();
+  const s = newState();
+  s.nome = nome; s.perfil = cr.perfil; s.temEmpresario = cr.empresario;
+  s.nacionalidade = cr.nacionalidade;
+
+  if (cr.perfil === 'jogador') {
+    s.modo = cr.modo; s.grupoPos = cr.grupoPos; s.posicao = cr.posicao;
+    setupJogador(s);
+  } else {
+    s.formacao = cr.formacao; s.grupoPos = 'TRE'; s.posicao = 'TRE'; s.idade = 30;
+    setupTreinador(s);
+  }
+
+  s.calendario = gerarCalendario(s);
+  G = s;
+  saveGame(false);
+  launchGame();
+}
+
+function setupJogador(s) {
+  if (s.modo === 'aleatorio') {
+    const luck = rng(0,100);
+    if (luck >= 50) {
+      s.idade = rng(16,17); s.potencial = rng(78,92);
+      // Liga afinidade com a nacionalidade
+      const nac = NACIONALIDADES.find(n=>n.key===s.nacionalidade);
+      const ligaPref = nac?.ligaAfinidade || pickRandom(Object.keys(LIGAS));
+      const lk = LIGAS[ligaPref] ? ligaPref : pickRandom(Object.keys(LIGAS));
+      s.liga = lk; s.clube = LIGAS[lk].clubes[rng(2,7)];
+      s.tipoContrato = 'principal'; s.salario = rng(6000,14000);
+      s.contratoFim = s.ano+2; s.dinheiro = rng(5000,20000);
+      s.moral = 75; s.fama = rng(8,18);
+      s.attrs = genAttrs(rng(48,62), s.grupoPos);
+      addNoticia(s,'🎲',`Sorte grande! ${s.nome} começa com ${s.idade} anos no ${s.clube}!`);
+    } else {
+      s.idade = 18; s.potencial = rng(72,88);
+      s.liga = 'Brasileirão'; s.clube = pickRandom(CLUBES_PEQUENOS);
+      s.tipoContrato = 'principal'; s.salario = rng(1200,4500);
+      s.contratoFim = s.ano+1; s.dinheiro = rng(500,3000);
+      s.moral = 55; s.fama = rng(2,8);
+      s.attrs = genAttrs(rng(36,50), s.grupoPos);
+      addNoticia(s,'💪',`Começo difícil! ${s.nome} (18) chega ao ${s.clube} com tudo a provar.`);
+    }
+  } else {
+    s.idade = 16; s.potencial = rng(70,90);
+    s.liga = 'Brasileirão'; s.clube = pickRandom(CLUBES_PEQUENOS)+' (Base)';
+    s.tipoContrato = 'base'; s.salario = rng(500,1600);
+    s.contratoFim = s.ano+2; s.dinheiro = rng(200,1000);
+    s.moral = 80; s.fama = 2;
+    s.attrs = genAttrs(rng(30,44), s.grupoPos);
+    addNoticia(s,'🌱',`${s.nome} inicia com 16 anos na base do ${s.clube}. O futuro começa aqui.`);
+  }
+  // Calcular OVR inicial
+  s.ovr = calculateOverall(s);
+  // Camisa: 10 padrão até o player pedir uma no perfil
+  s.camisa = 10;
+  // Contrato inicial
+  s.contrato = {
+    clube: s.clube, liga: s.liga,
+    salario: s.salario, anos: s.contratoFim - s.ano,
+    bonusGol:    Math.round(s.salario*0.08),
+    bonusAssist: Math.round(s.salario*0.05),
+    clausula: s.salario * 52 * 3,
+    paciencia: 3,
+  };
+  // Agente: começa sem agente
+  s.tipoAgente = s.temEmpresario ? 'amigo' : 'nenhum';
+  s.statsPartida = { golsSofridos:0, defesas:0, tackles:0, rematesTotal:0, rematesToGol:0, cleanSheets:0 };
+}
+
+function setupTreinador(s) {
+  s.liga = 'Brasileir?o'; s.clube = pickRandom(CLUBES_PEQUENOS);
+  s.tipoContrato = 'treinador'; s.salario = rng(4500,14000);
+  s.contratoFim = s.ano+1; s.dinheiro = rng(10000,30000);
+  s.moral = 70; s.fama = rng(5,15);
+  s.attrs = {};
+  ATTRS_TREINADOR.forEach(a => s.attrs[a.key] = rng(35,55));
+  s.taticaTreinador = { formacao:s.formacao || '4-3-3', estilo:'equilibrado' };
+  s.licencaTreinador = { nivel:'C', cursoAtivo:null, historicoCursos:[], ultimoPedidoSemana:null };
+  s.clubeStatus = { confiancaGrupo:55, apoioTorcida:55, apoioDiretoria:55, derrotasSeguidas:0, vitoriasSeguidas:0 };
+  s.elencoClube = gerarElencoClubePersistente(s.clube, s.liga);
+  s.orcamentoClube = Math.max(25000, Math.round((clubeOvrEstimado(s.clube, s.liga)||60) * 1600));
+  s.mercadoTreinador = { chave:null, candidatos:[] };
+  s.movsPlantel = { chave:null, usados:0 };
+  s.ovr = calcularOVRTreinador(s);
+  addNoticia(s,'TRE',s.nome+' assume o '+s.clube+' com formacao '+s.taticaTreinador.formacao+'.');
+}
+
+function genAttrs(media, grupo) {
+  const isGOL = grupo === 'GOL';
+  const statList = isGOL ? STATS_GOLEIRO : STATS_JOGADOR;
+  const prio     = STAT_PRIO[grupo] || STAT_PRIO.ATA;
+  const attrs = {};
+
+  statList.forEach(s => {
+    const prioIdx = prio.indexOf(s.key);
+    // Top-5 priority stats get a boost, others near media
+    let boost = 0;
+    if      (prioIdx === 0) boost = rng(10,16);
+    else if (prioIdx <= 2)  boost = rng(6,12);
+    else if (prioIdx <= 4)  boost = rng(3,8);
+    attrs[s.key] = Math.min(99, Math.max(15, rng(media-14, media+14) + boost));
+  });
+  return attrs;
+}
+
+function refreshOVR() {
+  if (!G) return;
+  if (G.perfil === 'treinador') {
+    G.ovr = calcularOVRTreinador(G);
+    return;
+  }
+  G.ovr = calculateOverall(G);
+}
+
+const LICENCAS_TREINADOR = {
+  C:   { nome:'Licenca C',   mult:1.00, ovr:48, prox:'B' },
+  B:   { nome:'Licenca B',   mult:1.12, ovr:58, prox:'A',   semanas:12, custo:25000, diretoriaReq:55, famaReq:0 },
+  A:   { nome:'Licenca A',   mult:1.25, ovr:68, prox:'Pro', semanas:18, custo:60000, diretoriaReq:65, famaReq:25, exigeObjetivo:true },
+  Pro: { nome:'Licenca Pro', mult:1.42, ovr:78, prox:null,  semanas:24, custo:140000, diretoriaReq:75, famaReq:50, exigeObjetivo:true }
+};
+
+const TREINOS_COLETIVOS = [
+  { id:'fisico', icon:'FIS', nome:'Fisico', custo:16, desc:'Energia, resistencia e intensidade. Pode cansar o grupo.', foco:'energia' },
+  { id:'tatico', icon:'TAC', nome:'Tatico', custo:11, desc:'Organizacao, entrosamento e leitura de jogo.', foco:'entrosamento' },
+  { id:'tecnico', icon:'TEC', nome:'Tecnico', custo:13, desc:'Fundamentos por posicao e evolucao de OVR.', foco:'ovr' },
+  { id:'mental', icon:'PSI', nome:'Psicologico', custo:9, desc:'Moral, confianca e resposta a derrotas.', foco:'moral' }
+];
+
+const POS_ELENCO_TREINADOR = ['GK','RB','CB','CB','LB','VOL','MC','MC','RW','ST','LW','GK','CB','MC','RW','ST','LW','VOL'];
+
+function normalizarClubeStatus(alvo = G) {
+  if (!alvo) return;
+  if (!alvo.clubeStatus || typeof alvo.clubeStatus !== 'object') alvo.clubeStatus = {};
+  alvo.clubeStatus.confiancaGrupo = Math.max(0, Math.min(100, Math.round(Number(alvo.clubeStatus.confiancaGrupo)||55)));
+  alvo.clubeStatus.apoioTorcida = Math.max(0, Math.min(100, Math.round(Number(alvo.clubeStatus.apoioTorcida)||55)));
+  alvo.clubeStatus.apoioDiretoria = Math.max(0, Math.min(100, Math.round(Number(alvo.clubeStatus.apoioDiretoria)||55)));
+  alvo.clubeStatus.derrotasSeguidas = Math.max(0, Math.round(Number(alvo.clubeStatus.derrotasSeguidas)||0));
+  alvo.clubeStatus.vitoriasSeguidas = Math.max(0, Math.round(Number(alvo.clubeStatus.vitoriasSeguidas)||0));
+}
+
+function normalizarLicencaTreinador(alvo = G) {
+  if (!alvo) return;
+  if (!alvo.licencaTreinador || typeof alvo.licencaTreinador !== 'object') alvo.licencaTreinador = {};
+  if (!LICENCAS_TREINADOR[alvo.licencaTreinador.nivel]) alvo.licencaTreinador.nivel = 'C';
+  if (alvo.licencaTreinador.cursoAtivo && typeof alvo.licencaTreinador.cursoAtivo !== 'object') alvo.licencaTreinador.cursoAtivo = null;
+  if (!Array.isArray(alvo.licencaTreinador.historicoCursos)) alvo.licencaTreinador.historicoCursos = [];
+  alvo.licencaTreinador.ultimoPedidoSemana = alvo.licencaTreinador.ultimoPedidoSemana || null;
+}
+
+function calcularOVRTreinador(alvo = G) {
+  normalizarLicencaTreinador(alvo);
+  normalizarClubeStatus(alvo);
+  const lic = LICENCAS_TREINADOR[alvo.licencaTreinador.nivel] || LICENCAS_TREINADOR.C;
+  const reputacao = Math.floor((Number(alvo.fama)||0) / 8);
+  const diretoria = Math.floor(((alvo.clubeStatus?.apoioDiretoria)||55) / 25);
+  return Math.max(40, Math.min(92, lic.ovr + reputacao + diretoria));
+}
+
+function nomeJogadorElenco(i, pos) {
+  const base = [...NPC_NAMES, ...SUB_NAMES, 'Jovem', 'Veterano', 'Capitao', 'Garoto'];
+  return (base[i % base.length] || 'Jogador')+' '+pos;
+}
+
+function gerarElencoClubePersistente(clube = G?.clube, liga = G?.liga) {
+  const base = Math.max(52, Math.min(84, clubeOvrEstimado(clube, liga)));
+  return POS_ELENCO_TREINADOR.map((pos, i) => {
+    const idade = i < 11 ? rng(22,31) : rng(18,34);
+    const jovem = idade <= 21;
+    const ovr = Math.max(42, Math.min(90, base + (i < 11 ? rng(-3,4) : rng(-9,1))));
+    return {
+      id: (clube||'clube').toLowerCase().replace(/[^a-z0-9]+/g,'_')+'_'+i+'_'+Date.now().toString(36),
+      nome: nomeJogadorElenco(i, pos),
+      pos, idade, ovr,
+      potencial: Math.max(45, Math.min(94, ovr + (jovem ? rng(8,18) : rng(0,8)))),
+      energia: rng(72,100),
+      moral: rng(45,75),
+      papel: i < 3 ? 'estrela' : i < 8 ? 'importante' : i < 11 ? 'rotacao' : jovem ? 'jovem' : 'reserva',
+      emLesao:false,
+      nota:6.0,
+      ego:rng(35,65),
+      jogos:0,
+      banco:0,
+      insatisfeito:false,
+    };
+  });
+}
+
+function normalizarElencoClube(force = false) {
+  if (!G || G.perfil !== 'treinador') return [];
+  if (force || !Array.isArray(G.elencoClube) || G.elencoClube.length < 16) {
+    G.elencoClube = gerarElencoClubePersistente(G.clube, G.liga);
+  }
+  G.elencoClube = G.elencoClube.slice(0,18).map((p,i) => ({
+    id:p.id || ('pl_'+i+'_'+Date.now().toString(36)),
+    nome:p.nome || nomeJogadorElenco(i, p.pos || POS_ELENCO_TREINADOR[i] || 'MC'),
+    pos:p.pos || POS_ELENCO_TREINADOR[i] || 'MC',
+    idade:Math.max(16, Math.min(40, Math.round(Number(p.idade)||24))),
+    ovr:Math.max(35, Math.min(99, Math.round(Number(p.ovr)||55))),
+    potencial:Math.max(35, Math.min(99, Math.round(Number(p.potencial)||Number(p.ovr)||60))),
+    energia:Math.max(0, Math.min(100, Math.round(Number(p.energia)||80))),
+    moral:Math.max(0, Math.min(100, Math.round(Number(p.moral)||55))),
+    papel:p.papel || (i < 11 ? 'rotacao' : 'reserva'),
+    emLesao:!!p.emLesao,
+    nota:Number(p.nota)||6.0,
+    ego:Math.max(0, Math.min(100, Math.round(Number(p.ego)||50))),
+    jogos:Math.max(0, Math.round(Number(p.jogos)||0)),
+    banco:Math.max(0, Math.round(Number(p.banco)||0)),
+    insatisfeito:!!p.insatisfeito,
+  }));
+  return G.elencoClube;
+}
+
+function squadFromElencoPersistente(teamName) {
+  const elenco = normalizarElencoClube(false);
+  if (!elenco.length) return null;
+  return elenco.slice(0,16).map((p,i) => ({
+    name:p.nome,
+    pos:p.pos,
+    ovr:p.ovr,
+    num:NPC_NUMS[i] || (i+1),
+    energia:p.energia,
+    isPlayer:false,
+    inGame:i < 11,
+    subbedOut:false,
+    _pid:p.id,
+  }));
+}
+
+function sincronizarElencoPosPartida(resultado = '') {
+  if (!G || G.perfil !== 'treinador' || !MS) return;
+  const squad = MS.isHome ? MS.squadA : MS.squadB;
+  const moralDelta = String(resultado).startsWith('vit') ? 3 : String(resultado).startsWith('der') ? -3 : 1;
+  normalizarElencoClube(false);
+  squad.forEach(p => {
+    if (!p._pid) return;
+    const alvo = G.elencoClube.find(x => x.id === p._pid);
+    if (!alvo) return;
+    alvo.energia = Math.max(0, Math.min(100, Math.round(p.energia || alvo.energia)));
+    alvo.moral = Math.max(0, Math.min(100, Math.round((alvo.moral||55) + moralDelta)));
+    alvo.nota = Number(MS.ratings?.[MS.isHome?'teamA':'teamB']?.[p.num]) || alvo.nota || 6.0;
+    if (p.inGame) alvo.jogos = (alvo.jogos||0) + 1;
+    else alvo.banco = (alvo.banco||0) + 1;
+  });
+}
+
+function mediaElenco(campo) {
+  const elenco = normalizarElencoClube(false);
+  if (!elenco.length) return 55;
+  return elenco.reduce((s,p)=>s+(Number(p[campo])||0),0) / elenco.length;
+}
+
+function bonusLicencaTreino() {
+  normalizarLicencaTreinador();
+  return LICENCAS_TREINADOR[G.licencaTreinador.nivel]?.mult || 1;
+}
+
+function treinoColetivo(tipo) {
+  if (!G || G.perfil !== 'treinador') return;
+  const def = TREINOS_COLETIVOS.find(t => t.id === tipo);
+  if (!def) return;
+  const treinosHoje = G.treinoHoje || 0;
+  if (treinosHoje >= 3) { showToast('Limite diario de 3 treinos atingido.'); return; }
+  normalizarElencoClube(false);
+  normalizarLicencaTreinador();
+  const moralMedia = mediaElenco('moral');
+  const energiaMedia = mediaElenco('energia');
+  const mult = bonusLicencaTreino() + ((moralMedia-55)/120) + ((energiaMedia-60)/180);
+  let ganhoBase = Math.max(1, Math.min(6, Math.round(rng(1,6) * mult)));
+  const afetados = G.elencoClube.filter(p => !p.emLesao).sort(() => Math.random()-0.5).slice(0, Math.max(8, Math.min(14, G.elencoClube.length)));
+  afetados.forEach(p => {
+    const idadeMult = p.idade <= 21 ? 1.25 : p.idade >= 32 ? 0.70 : 1.0;
+    const tetoPot = Math.max(p.ovr, p.potencial || p.ovr);
+    const ganho = Math.max(1, Math.min(6, Math.round(ganhoBase * idadeMult)));
+    if (tipo === 'fisico') {
+      p.energia = Math.min(100, p.energia + ganho);
+      p.moral = Math.max(0, p.moral - 1);
+    } else if (tipo === 'tatico') {
+      p.ovr = Math.min(tetoPot, p.ovr + (Math.random() < 0.35 ? 1 : 0));
+      p.moral = Math.min(100, p.moral + Math.ceil(ganho/3));
+    } else if (tipo === 'tecnico') {
+      p.ovr = Math.min(tetoPot, p.ovr + (Math.random() < (0.25 + ganho/15) ? 1 : 0));
+    } else if (tipo === 'mental') {
+      p.moral = Math.min(100, p.moral + ganho);
+    }
+  });
+  if (tipo === 'fisico' && energiaMedia < 35 && Math.random() < 0.15) {
+    const alvo = pickRandom(G.elencoClube.filter(p=>!p.emLesao));
+    if (alvo) { alvo.emLesao = true; alvo.energia = Math.max(10, alvo.energia - 25); addNoticia(G,'MED',alvo.nome+' sentiu o treino fisico e ficou em observacao.'); }
+  }
+  if (tipo === 'tatico') {
+    G.entrosamento = Math.min(100, (G.entrosamento||30) + Math.ceil(ganhoBase/2));
+    ajustarStatusClube(Math.ceil(ganhoBase/3), 0, 0);
+  } else if (tipo === 'mental') {
+    ajustarStatusClube(ganhoBase, Math.ceil(ganhoBase/2), 0);
+  }
+  G.energia = Math.max(0, G.energia - Math.ceil(def.custo/2));
+  G.treinoHoje = treinosHoje + 1;
+  updateTopBar(); updateEnergiaBar(); populateAttrsGrid(); saveGame(false);
+  showPopup({
+    icon:def.icon,
+    titulo:'Treino '+def.nome,
+    corpo:'Sessao concluida.\nGanho base: '+ganhoBase+'/6\nAfetados: '+afetados.length+' jogadores\nLicenca: '+(G.licencaTreinador?.nivel||'C')+'\nTreinos hoje: '+G.treinoHoje+'/3',
+    botoes:[{icon:'OK', text:'Fechar', acao:closePopup}]
+  });
+}
+
+function avancarCursoTreinador() {
+  if (!G || G.perfil !== 'treinador') return;
+  normalizarLicencaTreinador();
+  const curso = G.licencaTreinador.cursoAtivo;
+  if (!curso) return;
+  curso.semanasRestantes = Math.max(0, (curso.semanasRestantes||0) - 1);
+  if (curso.semanasRestantes > 0) return;
+  G.licencaTreinador.nivel = curso.alvo;
+  G.licencaTreinador.historicoCursos.push({ nivel:curso.alvo, ano:G.ano, semana:G.semanaAtual, pagoPeloClube:!!curso.pagoPeloClube });
+  G.licencaTreinador.cursoAtivo = null;
+  G.fama = Math.min(100, (G.fama||0) + (curso.alvo === 'Pro' ? 8 : 4));
+  refreshOVR();
+  addNoticia(G,'LIC',G.nome+' concluiu a '+LICENCAS_TREINADOR[curso.alvo].nome+'.');
+}
+
+function pedirCursoLicenca() {
+  if (!G || G.perfil !== 'treinador') return;
+  normalizarLicencaTreinador();
+  normalizarClubeStatus();
+  const atual = LICENCAS_TREINADOR[G.licencaTreinador.nivel] || LICENCAS_TREINADOR.C;
+  const alvoKey = atual.prox;
+  if (!alvoKey) { showToast('Licenca maxima ja conquistada.'); return; }
+  if (G.licencaTreinador.cursoAtivo) { showToast('Curso em andamento.'); return; }
+  const alvo = LICENCAS_TREINADOR[alvoKey];
+  const semanaKey = G.ano+'-'+G.semanaAtual;
+  if (G.licencaTreinador.ultimoPedidoSemana === semanaKey) { showToast('A diretoria ja respondeu esta semana.'); return; }
+  const okDiretoria = (G.clubeStatus.apoioDiretoria||0) >= alvo.diretoriaReq;
+  const okFama = (G.fama||0) >= (alvo.famaReq||0);
+  const okObjetivo = !alvo.exigeObjetivo || !!G.ultimoObjetivoDiretoriaCumprido;
+  G.licencaTreinador.ultimoPedidoSemana = semanaKey;
+  if (!okDiretoria || !okFama || !okObjetivo) {
+    const reqs = ['diretoria '+alvo.diretoriaReq];
+    if ((alvo.famaReq||0) > 0) reqs.push('fama '+alvo.famaReq);
+    if (alvo.exigeObjetivo) reqs.push('objetivo recente cumprido');
+    const atualReq = 'Atual: diretoria '+Math.round(G.clubeStatus.apoioDiretoria||0)+
+      (((alvo.famaReq||0) > 0) ? ', fama '+Math.round(G.fama||0) : '')+
+      (alvo.exigeObjetivo ? ', objetivo '+(G.ultimoObjetivoDiretoriaCumprido?'cumprido':'pendente') : '');
+    showPopup({ icon:'DIR', titulo:'Pedido negado', corpo:'A diretoria recusou o curso.\n\nRequisitos: '+reqs.join(', ')+'.\n'+atualReq+'.', botoes:[{icon:'OK', text:'Fechar', acao:closePopup}] });
+    return;
+  }
+  G.licencaTreinador.cursoAtivo = { alvo:alvoKey, semanasRestantes:alvo.semanas, custo:alvo.custo, pagoPeloClube:true };
+  ajustarStatusClube(0,0,-4);
+  addNoticia(G,'LIC','Diretoria aprovou o curso para '+alvo.nome+'.');
+  saveGame(false);
+  showPopup({ icon:'LIC', titulo:'Curso aprovado', corpo:alvo.nome+' iniciado.\nDuracao: '+alvo.semanas+' semanas\nCusto pago pelo clube: '+fmtMoney(alvo.custo), botoes:[{icon:'OK', text:'Fechar', acao:closePopup}] });
+}

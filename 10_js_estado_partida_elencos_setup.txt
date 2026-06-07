@@ -1,0 +1,526 @@
+
+// Probabilidades de resultado por foco do jogador
+// Cada entry: { tipo, peso } — tipo precisa existir em MATCH_EVENTS
+function eventoDeTipo(tipo, ev) {
+  return { tipo, ...ev };
+}
+
+// POOLS EDITAVEIS DOS EVENTOS INTERATIVOS DA PARTIDA
+// Para criar um evento novo, adiciona um objeto dentro do hook/foco desejado:
+// { tipo:'duelo', desc:'Texto ate 160 caracteres.', choices:[
+//   {icon:'>', text:'Opcao ate 34 caracteres', skill:'drible', dif:55, resultType:'chance'},
+//   {icon:'>', text:'Outra escolha', skill:'passeCurto', dif:50, resultType:'assist'},
+//   {icon:'>', text:'Terceira escolha', skill:'mental', dif:48, resultType:'chance'}
+// ]}
+const MATCH_EVENT_POOLS = {
+  ataque: [
+    ...MATCH_EVENTS.gol_chance.map(ev => eventoDeTipo('gol_chance', ev)),
+    ...MATCH_EVENTS.gol_chance.map(ev => eventoDeTipo('gol_chance', ev)),
+    ...MATCH_EVENTS.duelo.map(ev => eventoDeTipo('duelo', ev)),
+    ...MATCH_EVENTS.ligacao.map(ev => eventoDeTipo('ligacao', ev)),
+  ],
+  defesa: [
+    ...MATCH_EVENTS.defesa.map(ev => eventoDeTipo('defesa', ev)),
+    ...MATCH_EVENTS.defesa.map(ev => eventoDeTipo('defesa', ev)),
+    ...MATCH_EVENTS.ligacao.map(ev => eventoDeTipo('ligacao', ev)),
+    ...MATCH_EVENTS.duelo.map(ev => eventoDeTipo('duelo', ev)),
+  ],
+  transicao: [
+    ...MATCH_EVENTS.ligacao.map(ev => eventoDeTipo('ligacao', ev)),
+    ...MATCH_EVENTS.ligacao.map(ev => eventoDeTipo('ligacao', ev)),
+    ...MATCH_EVENTS.duelo.map(ev => eventoDeTipo('duelo', ev)),
+    ...MATCH_EVENTS.gol_chance.map(ev => eventoDeTipo('gol_chance', ev)),
+  ],
+  equilibrado: [
+    ...MATCH_EVENTS.gol_chance.map(ev => eventoDeTipo('gol_chance', ev)),
+    ...MATCH_EVENTS.duelo.map(ev => eventoDeTipo('duelo', ev)),
+    ...MATCH_EVENTS.defesa.map(ev => eventoDeTipo('defesa', ev)),
+    ...MATCH_EVENTS.ligacao.map(ev => eventoDeTipo('ligacao', ev)),
+  ],
+};
+
+const FOCUS_LABELS = {
+  equilibrado: 'Equilibrado',
+  ataque: 'Ataque',
+  transicao: 'Transicao',
+  defesa: 'Defesa'
+};
+
+
+function textoMomento(grupo, dados = {}) {
+  const pool = MOMENTOS_PARTIDA[grupo] || MOMENTOS_PARTIDA.semPlayerComPosse;
+  return pickRandom(pool)
+    .replace(/\{time\}/g, dados.time || G.clube || 'Seu time')
+    .replace(/\{adv\}/g, dados.adv || 'o adversario')
+    .replace(/\{player\}/g, dados.player || G.nome || 'Voce')
+    .replace(/\{resultado\}/g, dados.resultado || '')
+    .replace(/\{influencia\}/g, dados.influencia || '');
+}
+
+function influenciaDoPlayer(comPosse) {
+  if (!MS || G.perfil === 'treinador' || MS._playerSubstituido || !MS.playerInGame) return '';
+  const foco = MS.playerFocus || 'equilibrado';
+  if (comPosse) {
+    if (foco === 'ataque') return G.nome+' se aproxima da area e puxa marcador.';
+    if (foco === 'transicao') return G.nome+' oferece linha de passe por dentro.';
+    if (foco === 'defesa') return G.nome+' fica mais preso para proteger a perda.';
+    return G.nome+' se movimenta para dar opcao.';
+  }
+  if (foco === 'defesa') return G.nome+' fecha o setor e ajuda a recuperar espaco.';
+  if (foco === 'transicao') return G.nome+' tenta ficar pronto para a transicao.';
+  if (foco === 'ataque') return G.nome+' guarda energia para o contra-ataque.';
+  return G.nome+' acompanha a jogada sem se expor.';
+}
+
+function mostrarMomento(grupo, texto, meta = '', cls = '') {
+  const card = document.getElementById('moment-card');
+  const kicker = document.getElementById('moment-kicker');
+  const body = document.getElementById('moment-text');
+  const info = document.getElementById('moment-meta');
+  const semPosse = grupo.includes('Sem');
+  const player = grupo.includes('player') || grupo.includes('Player');
+  if (card) card.className = 'moment-card ' + (cls || (semPosse ? 'sem-posse' : 'posse')) + (player ? ' player' : '');
+  if (kicker) kicker.textContent = MS ? MS.min + "' | " + (semPosse ? 'Sem posse' : 'Com posse') : 'Momento do jogo';
+  if (body) body.textContent = texto;
+  if (info) info.textContent = meta;
+  logMatch(texto + (meta ? ' - ' + meta : ''), cls === 'gol' ? 'gol' : '');
+}
+
+function registrarMomentoSemPlayer(comPosse, meta = '') {
+  const time = MS.isHome ? MS.home : MS.away;
+  const adv = MS.isHome ? MS.away : MS.home;
+  const grupo = comPosse ? 'semPlayerComPosse' : 'semPlayerSemPosse';
+  const texto = textoMomento(grupo, { time, adv, influencia: influenciaDoPlayer(comPosse) });
+  if (comPosse) {
+    addMatchMod('meio', 0.35, 'posse sustentada');
+    if (Math.random() < 0.45) addMatchMod('ataque', 0.25, 'aproximacao');
+  } else {
+    addMatchMod('advMeio', 0.35, 'posse adversaria');
+    if (Math.random() < 0.35) addMatchMod('defesa', 0.25, 'defesa posicionada');
+  }
+  mostrarMomento(grupo, texto, meta, comPosse ? 'posse' : 'sem-posse');
+  showMatchDiffInfo();
+}
+
+function resultadoTexto(rt, ok) {
+  const grupo = RESULTADOS_MOMENTO[rt] || RESULTADOS_MOMENTO.chance;
+  return pickRandom(ok ? grupo.ok : grupo.fail);
+}
+
+function clampMatchMod(v) {
+  return Math.max(-8, Math.min(12, Number(v) || 0));
+}
+
+function addMatchMod(key, delta, reason = '') {
+  if (!MS) return 0;
+  if (!MS.mods) MS.mods = { ataque:0, meio:0, defesa:0, advAtaque:0, advMeio:0, advDefesa:0 };
+  MS.mods[key] = clampMatchMod((MS.mods[key] || 0) + delta);
+  if (reason) MS._lastModReason = reason;
+  return MS.mods[key];
+}
+
+function clampRating(v) {
+  return Math.max(1, Math.min(10, Math.round((Number(v) || 6) * 10) / 10));
+}
+
+function ensureRatings() {
+  if (!MS) return null;
+  if (!MS.ratings) MS.ratings = { player:6.0, teamA:{}, teamB:{}, events:[] };
+  ['teamA','teamB'].forEach((key) => {
+    const squad = key === 'teamA' ? MS.squadA : MS.squadB;
+    if (!MS.ratings[key]) MS.ratings[key] = {};
+    (squad || []).forEach((p) => {
+      if (MS.ratings[key][p.num] === undefined) {
+        const base = 5.4 + ((p.ovr || 60) - 60) / 38 + rng(-4,5) / 10;
+        MS.ratings[key][p.num] = clampRating(base);
+      }
+    });
+  });
+  MS.ratings.player = clampRating(MS.ratings.player ?? 6.0);
+  return MS.ratings;
+}
+
+function addPlayerRating(delta, reason = '') {
+  if (!MS) return 6;
+  ensureRatings();
+  MS.ratings.player = clampRating((MS.ratings.player || 6) + delta);
+  if (reason) MS.ratings.events.push({ min:MS.min||0, delta, reason });
+  return MS.ratings.player;
+}
+
+function addNpcRating(teamKey, num, delta) {
+  if (!MS || !num) return;
+  ensureRatings();
+  if (!MS.ratings[teamKey]) MS.ratings[teamKey] = {};
+  MS.ratings[teamKey][num] = clampRating((MS.ratings[teamKey][num] || 6) + delta);
+}
+
+function getMyTeamKey() { return MS?.isHome ? 'teamA' : 'teamB'; }
+function getAdvTeamKey() { return MS?.isHome ? 'teamB' : 'teamA'; }
+
+function calcularNotasIntervalo() {
+  const ratings = ensureRatings();
+  if (!MS || !ratings) return { destaques:[], cansados:[], melhor:null, player:6 };
+  ['teamA','teamB'].forEach((key) => {
+    const squad = key === 'teamA' ? MS.squadA : MS.squadB;
+    squad.forEach((p) => {
+      const en = p.isPlayer ? G.energia : p.energia;
+      const enPenalty = p.inGame && en < 35 ? -0.25 : 0;
+      const activeBonus = p.inGame ? 0.08 : -0.05;
+      ratings[key][p.num] = clampRating((ratings[key][p.num] || 6) + enPenalty + activeBonus);
+    });
+  });
+  const all = [];
+  [['teamA',MS.squadA,MS.home], ['teamB',MS.squadB,MS.away]].forEach(([key,squad,team]) => {
+    squad.forEach(p => all.push({
+      key, team, num:p.num, name:p.isPlayer ? G.nome : p.name, pos:p.pos,
+      energia:Math.round(p.isPlayer ? G.energia : p.energia),
+      inGame:p.inGame, isPlayer:p.isPlayer,
+      nota:p.isPlayer ? ratings.player : ratings[key][p.num]
+    }));
+  });
+  all.sort((a,b) => b.nota - a.nota);
+  return {
+    destaques: all.filter(p => p.inGame).slice(0,3),
+    cansados: all.filter(p => p.inGame && p.energia <= 35).sort((a,b)=>a.energia-b.energia).slice(0,4),
+    melhor: all[0] || null,
+    player: clampRating(ratings.player)
+  };
+}
+
+function resumoNotasIntervalo() {
+  const n = calcularNotasIntervalo();
+  return {
+    notaPlayer: n.player.toFixed(1),
+    destaques: n.destaques.length ? n.destaques.map(p => p.name+' '+p.nota.toFixed(1)).join(', ') : 'sem destaques claros',
+    cansados: n.cansados.length ? n.cansados.map(p => p.name+' EN '+p.energia).join(', ') : 'nenhum alerta grave',
+    melhor: n.melhor ? n.melhor.name+' ('+n.melhor.nota.toFixed(1)+')' : 'indefinido'
+  };
+}
+
+function instrucaoAutomaticaTecnico() {
+  const myScore = MS.isHome ? MS.hs : MS.as;
+  const oppScore = MS.isHome ? MS.as : MS.hs;
+  const nota = ensureRatings().player || 6;
+  if (myScore < oppScore) return nota >= 6.5 ? 'agressivo' : 'motivador';
+  if (myScore > oppScore) return nota < 5.8 ? 'segurar' : 'controle';
+  if (G.energia < 30) return 'segurar';
+  return nota >= 7 ? 'agressivo' : 'controle';
+}
+
+function aplicarInstrucaoIntervalo(tipo) {
+  if (!MS || MS.done) return;
+  const btn = document.getElementById('btn-pause');
+  const textos = {
+    agressivo:'O time volta pressionando alto e atacando mais.',
+    motivador:'O vestiario reage bem. Moral e concentracao sobem.',
+    controle:'A ordem e controlar o meio e escolher melhor os lances.',
+    segurar:'O time reduz riscos e protege energia/defesa.',
+    tatico:'Ajuste tatico: linhas mais compactas na segunda parte.'
+  };
+  if (tipo === 'agressivo') { addMatchMod('ataque', 1.4, 'intervalo agressivo'); addMatchMod('defesa', -0.4, 'risco no intervalo'); }
+  else if (tipo === 'motivador') { addMatchMod('ataque', 0.7, 'intervalo motivador'); addMatchMod('defesa', 0.7, 'intervalo motivador'); G.moral = Math.min(100, G.moral + 5); }
+  else if (tipo === 'segurar') { addMatchMod('defesa', 1.3, 'intervalo conservador'); addMatchMod('ataque', -0.3, 'menos risco no intervalo'); G.energia = Math.min(energiaCap(), G.energia + 4); updateEnergiaBar(); }
+  else if (tipo === 'tatico') { addMatchMod('meio', 1.1, 'ajuste tatico no intervalo'); addMatchMod('defesa', 0.8, 'ajuste tatico no intervalo'); }
+  else { addMatchMod('meio', 1.0, 'controle no intervalo'); addMatchMod('ataque', 0.35, 'controle no intervalo'); }
+  G.palestraUsada = true;
+  MS._intervaloResolvido = true;
+  logMatch('Intervalo: '+(textos[tipo] || textos.controle), 'hl');
+  closePopup();
+  MS.paused = false;
+  if (btn) { btn.textContent = '⏸ Pause'; btn.classList.remove('paused'); }
+  showMatchDiffInfo();
+  scheduleNextTick(900);
+}
+
+function abrirIntervaloPartida() {
+  if (!MS || MS.done) return;
+  MS._intervaloAberto = true;
+  MS.paused = true;
+  clearTimeout(_matchTimer);
+  const btn = document.getElementById('btn-pause');
+  if (btn) { btn.textContent = '▶ Continuar'; btn.classList.add('paused'); }
+  const r = resumoNotasIntervalo();
+  const placar = MS.home+' '+MS.hs+' x '+MS.as+' '+MS.away;
+  const base = placar+
+    '\n\nNota do player: '+r.notaPlayer+
+    '\nEnergia: '+G.energia+'/'+energiaCap()+
+    '\nDestaques: '+r.destaques+
+    '\nCansados: '+r.cansados;
+  if (G.perfil === 'treinador') {
+    showPopup({
+      icon:'INT', titulo:'Intervalo',
+      corpo:base+'\n\nEscolha a instrucao para a segunda parte.',
+      botoes:[
+        {icon:'ATK', text:'Pressao maxima', acao:()=>aplicarInstrucaoIntervalo('agressivo')},
+        {icon:'MOT', text:'Motivar o grupo', acao:()=>aplicarInstrucaoIntervalo('motivador')},
+        {icon:'TAT', text:'Ajuste tatico', acao:()=>aplicarInstrucaoIntervalo('tatico')},
+        {icon:'SUB', text:'Ver elenco/substituir', acao:()=>{ closePopup(); openLineupMenu(); }}
+      ]
+    });
+    return;
+  }
+  const tipo = instrucaoAutomaticaTecnico();
+  const fala = {
+    agressivo:'O tecnico quer que voce ataque o espaco e decida mais lances.',
+    motivador:'O tecnico pede calma: "continua trabalhando, o jogo ainda e teu".',
+    controle:'O tecnico pede controle: menos ansiedade, mais passe certo.',
+    segurar:'O tecnico pede para gerir energia e proteger melhor o setor.'
+  }[tipo] || 'O tecnico pede concentracao.';
+  showPopup({
+    icon:'INT', titulo:'Intervalo',
+    corpo:base+'\n\n'+fala,
+    botoes:[
+      {icon:'OK', text:'Voltar para a segunda parte', acao:()=>aplicarInstrucaoIntervalo(tipo)},
+      {icon:'SUB', text:'Ver elenco', acao:()=>{ closePopup(); openLineupMenu(); }},
+      {icon:'SAIR', text:'Pedir substituicao', acao:()=>{
+        const myTeam = MS.isHome ? MS.squadA : MS.squadB;
+        const me = myTeam.find(p => p.isPlayer && p.inGame);
+        closePopup();
+        if (me && (G.energia <= 35 || (MS.ratings?.player||6) < 5.8)) triggerPlayerSub(me);
+        else { showToast('Tecnico prefere manter voce em campo.'); abrirIntervaloPartida(); }
+      }}
+    ]
+  });
+}
+
+function applyEventMods(resultType, ok) {
+  const good = ok ? 1 : -1;
+  if (resultType === 'gol') {
+    addMatchMod('ataque', ok ? 1.8 : -0.8, ok ? 'finalizacao forte' : 'chance perdida');
+    addMatchMod('meio', ok ? 0.5 : -0.3);
+  } else if (resultType === 'assist') {
+    addMatchMod('meio', ok ? 1.6 : -0.5, ok ? 'passe decisivo' : 'passe falhado');
+    addMatchMod('ataque', ok ? 0.9 : -0.4);
+  } else if (resultType === 'chance') {
+    addMatchMod('ataque', ok ? 1.2 : -0.5, ok ? 'chance criada' : 'ataque travado');
+    addMatchMod('meio', ok ? 0.6 : -0.2);
+  } else if (['interceptacao','recuperacao','bloqueio'].includes(resultType)) {
+    addMatchMod('defesa', ok ? 1.4 : -0.7, ok ? 'acao defensiva' : 'defesa exposta');
+    addMatchMod('meio', ok ? 0.5 : -0.3);
+    addMatchMod('advAtaque', ok ? -0.8 : 1.0);
+  } else {
+    addMatchMod('meio', good * 0.4);
+  }
+}
+
+function calcTeamGoalThreshold(side, golsJaMarcados) {
+  const d = MS.matchDiff || {};
+  const m = MS.mods || {};
+  if (side === 'player') {
+    const base = calcGolThreshold(d.myGolBase||45, d.myGolPenalty||16, golsJaMarcados);
+    const pressure = (m.ataque||0)*2.2 + (m.meio||0)*1.1 - (m.advDefesa||0)*1.2;
+    return Math.max(8, Math.min(96, Math.round(base - pressure)));
+  }
+  const base = calcGolThreshold(d.advGolBase||62, d.advGolPenalty||13, golsJaMarcados);
+  const pressure = (m.advAtaque||0)*2.1 + (m.advMeio||0)*1.0 - (m.defesa||0)*1.6;
+  return Math.max(10, Math.min(98, Math.round(base - pressure)));
+}
+
+function modsResumo() {
+  const m = MS?.mods || {};
+  return 'Mods A/M/D: '+(m.ataque||0).toFixed(1)+'/'+(m.meio||0).toFixed(1)+'/'+(m.defesa||0).toFixed(1)+
+    ' | ADV '+(m.advAtaque||0).toFixed(1)+'/'+(m.advMeio||0).toFixed(1)+'/'+(m.advDefesa||0).toFixed(1);
+}
+
+function pickActiveTeammateNumber(fallback = 9) {
+  if (!MS) return fallback;
+  const myTeam = MS.isHome ? MS.squadA : MS.squadB;
+  const candidates = myTeam.filter(p => p && p.inGame && !p.isPlayer);
+  return (pickRandom(candidates)?.num) || fallback;
+}
+
+function escolherAcaoAutomatica(choices) {
+  let best = 0, bestScore = -999;
+  choices.forEach((ch, i) => {
+    const skill = getSkillValue(ch.skill, 40);
+    const focusBonus = MS?.playerFocus === 'ataque' && ['gol','chance','assist'].includes(ch.resultType) ? 5
+                    : MS?.playerFocus === 'defesa' && ['interceptacao','recuperacao','bloqueio'].includes(ch.resultType) ? 5
+                    : MS?.playerFocus === 'transicao' && ch.resultType === 'assist' ? 5 : 0;
+    const score = skill - ch.dif + focusBonus + rng(-8, 8);
+    if (score > bestScore) { bestScore = score; best = i; }
+  });
+  return best;
+}
+
+function setFocus(focus) {
+  if (!MS) return;
+  MS.playerFocus = focus;
+  ['equilibrado','ataque','transicao','defesa'].forEach(f => {
+    const btn = document.getElementById('fb-'+f);
+    if (btn) btn.classList.toggle('active', f === focus);
+  });
+  const labels = { equilibrado:'Equilibrado - eventos variados', ataque:'Ataque - mais finalizacoes e duelos ofensivos', transicao:'Transicao - passes, contra-ataques e assistencias', defesa:'Defesa - recuperacoes e bloqueios' };
+  showToast(labels[focus] || focus);
+  if (MS.running && !MS.done && Array.isArray(MS._eventPool)) {
+    const usados = MS._eventPool.filter(e => e.usado);
+    const novos = gerarEventosPartida(MS.matchDiff, focus).filter(e => e.min > MS.min);
+    MS._eventPool = [...usados, ...novos].sort((a,b) => a.min - b.min);
+  }
+}
+
+function showMatchDiffInfo() {
+  if (!MS) return;
+  const el = document.getElementById('match-diff-info');
+  if (!el) return;
+  const d = MS.matchDiff;
+  const dCls = d.label==='F?cil'||d.label==='Normal'?'easy':d.label==='Equilibrado'?'normal':'hard';
+  el.innerHTML =
+    '<span class="diff-chip '+dCls+'">'+d.label+'</span>'+
+    '<span style="color:var(--text3);font-size:11px">OVR '+MS.myOvr+' vs '+MS.advOvr+' | '+modsResumo()+'</span>';
+}
+
+
+// Sistema de reuniao pre-jogo
+function renderReuniaoPreJogo() {
+  aplicarReuniaoAsset();
+  const moral   = G.moral || 70;
+  const moralMod = Math.floor((moral - 50) / 10);
+  const moralTxt = moralMod >= 2 ? '🔥 Moral alta (+'+moralMod+' no dado)'
+                 : moralMod <= -1 ? '😔 Moral baixa ('+moralMod+' no dado)'
+                 : '😐 Moral neutra ('+moralMod+' no dado)';
+
+  const infoEl = document.getElementById('reuniao-moral-info');
+  if (infoEl) infoEl.innerHTML =
+    '<span>Moral: <b>'+moral+'</b> — '+moralTxt+'</span>' +
+    '<span style="margin-left:12px">👑 Liderança: <b>'+(G.lideranca||5)+'</b></span>' +
+    '<span style="margin-left:12px">🧘 Compostura: <b>'+(G.compostura||5)+'</b></span>';
+
+  const cont = document.getElementById('reuniao-discursos');
+  if (!cont) return;
+  cont.innerHTML = '';
+
+  const keys = ['audacia','visao','intimidacao','lideranca_disc','compostura_disc'];
+  keys.forEach(key => {
+    const d = DISCURSOS[key];
+    if (!d) return;
+
+    // Verificar requisitos de desbloqueio
+    const locked = (d.requireLideranca && (G.lideranca||5) < d.requireLideranca)
+                 || (d.requireCompostura && (G.compostura||5) < d.requireCompostura);
+    const reqTxt  = d.requireLideranca ? '🔒 Requer Liderança '+d.requireLideranca
+                  : d.requireCompostura ? '🔒 Requer Compostura '+d.requireCompostura
+                  : '';
+
+    // Mostrar stat atual relevante
+    const statAtual = key === 'lideranca_disc'  ? (G.lideranca||5)
+                    : key === 'compostura_disc' ? (G.compostura||5)
+                    : '—';
+    const statLabel = key === 'lideranca_disc'  ? ' (Liderança: '+statAtual+')'
+                    : key === 'compostura_disc' ? ' (Compostura: '+statAtual+')'
+                    : '';
+
+    // Escolher frase aleatória para preview
+    const frase = d.frases[Math.floor(Math.random()*d.frases.length)];
+
+    const btn = document.createElement('button');
+    btn.className = 'disc-btn' + (locked ? ' locked' : '');
+    btn.innerHTML =
+      '<div class="db-icon">'+d.icon+'</div>' +
+      '<div>' +
+        '<div class="db-nome">'+d.nome+statLabel+'</div>' +
+        '<div class="db-desc">"'+frase+'"</div>' +
+        (locked ? '<div class="db-req">'+reqTxt+'</div>' : '') +
+      '</div>';
+
+    if (G.reuniaoFeita) {
+      btn.classList.add('locked');
+      btn.disabled = true;
+    } else if (!locked) {
+      btn.onclick = () => escolherDiscurso(key);
+    }
+    cont.appendChild(btn);
+  });
+
+  // Esconder resultado anterior
+  const resEl = document.getElementById('reuniao-resultado');
+  if (resEl) resEl.style.display = 'none';
+
+  // Limpar buff anterior
+  if (!G.reuniaoFeita) G.buffReuniao = null;
+}
+
+function escolherDiscurso(key) {
+  if (G.reuniaoFeita) {
+    showToast('Reuniao pre-jogo ja definida para esta partida.');
+    return;
+  }
+  G.reuniaoFeita = true;
+  document.querySelectorAll('.disc-btn').forEach(b => {
+    b.disabled = true;
+    b.classList.add('locked');
+  });
+  // Highlight botão selecionado
+  document.querySelectorAll('.disc-btn').forEach(b => b.classList.remove('sel'));
+  const allBtns = document.querySelectorAll('.disc-btn:not(.locked)');
+  let idx = 0;
+  const keys = ['audacia','visao','intimidacao','lideranca_disc','compostura_disc']
+    .filter(k => {
+      const d = DISCURSOS[k];
+      if (d.requireLideranca && (G.lideranca||5) < d.requireLideranca) return false;
+      if (d.requireCompostura && (G.compostura||5) < d.requireCompostura) return false;
+      return true;
+    });
+  const btnIdx = keys.indexOf(key);
+  if (btnIdx >= 0 && allBtns[btnIdx]) allBtns[btnIdx].classList.add('sel');
+
+  // Pequeno delay dramático para o "roll"
+  setTimeout(() => rolarD20Reuniao(key), 300);
+}
+
+function rolarD20Reuniao(key) {
+  const roll = rng(1, 20); // D20
+  const resultado = calcBonusReuniao(key, roll);
+  const disc = DISCURSOS[key];
+
+  // Salvar buff no estado global (startMatch vai copiar para MS)
+  G.buffReuniao = {
+    disc,
+    discKey: key,
+    bonus: resultado.bonus,
+    roll: resultado.roll,
+    falhaCrit: resultado.falhaCrit,
+    aplicado: false,
+  };
+
+  // Renderizar resultado
+  const resEl = document.getElementById('reuniao-resultado');
+  if (resEl) {
+    resEl.style.display = 'block';
+    resEl.style.borderColor = resultado.falhaCrit ? 'var(--red)' : resultado.bonus >= 5 ? 'var(--gold)' : 'var(--green)';
+
+    const d20Cls = roll === 20 ? 'd20-roll' : roll === 1 ? 'd20-roll d20-critico' : 'd20-roll';
+    const rollDesc = roll === 20 ? ' 🎉 CRÍTICO!' : roll === 1 ? ' 💀 Fumble!' : '';
+
+    let nivelBuff = '', corBuff = 'var(--green)';
+    if (resultado.falhaCrit) {
+      nivelBuff = '❌ Discurso falhou — time desconfiante';
+      corBuff = 'var(--red)';
+    } else if (resultado.bonus >= 6) {
+      nivelBuff = '🌟 INSPIRADO! DC dos eventos −'+resultado.bonus+' nesta partida';
+      corBuff = 'var(--gold)';
+    } else if (resultado.bonus >= 3) {
+      nivelBuff = '✅ Focado — DC dos eventos −'+resultado.bonus+' nesta partida';
+    } else if (resultado.bonus >= 1) {
+      nivelBuff = '👍 Leve bónus — DC −'+resultado.bonus+' nesta partida';
+    } else {
+      nivelBuff = '😐 Sem efeito — tenta num próximo jogo';
+      corBuff = 'var(--text2)';
+    }
+
+    document.getElementById('reuniao-res-titulo').style.color = corBuff;
+    document.getElementById('reuniao-res-titulo').innerHTML =
+      'D20: <span class="'+d20Cls+'">'+roll+'</span>'+rollDesc+
+      '  →  Total: '+resultado.total;
+
+    const eventosStr = disc.eventosAfetados?.length
+      ? 'Facilita: '+disc.eventosAfetados.map(e=>NOME_EVENTO[e]||e).join(', ')
+      : 'Facilita todos os tipos de evento';
+
+    document.getElementById('reuniao-res-desc').textContent = eventosStr;
+    document.getElementById('reuniao-res-buff').style.color = corBuff;
+    document.getElementById('reuniao-res-buff').textContent = nivelBuff;
+
+    resEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
+}

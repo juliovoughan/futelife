@@ -1,0 +1,595 @@
+
+// ─── CALENDÁRIO ──────────────────────────────────────────────
+
+function janelaPlantelKey() {
+  const fase = G.semanaAtual <= 6 ? 'inicio' : G.semanaAtual <= 24 ? 'meio' : 'fim';
+  return G.ano+'-'+fase;
+}
+
+function calcularOrcamentoClube() {
+  const base = clubeOvrEstimado(G?.clube, G?.liga) || 60;
+  return Math.max(25000, Math.round((base * 1400) + ((G?.fama||0) * 900) + rng(0,25000)));
+}
+
+function normalizarGestaoPlantel() {
+  if (!G || G.perfil !== 'treinador') return;
+  normalizarElencoClube(false);
+  if (!G.mercadoTreinador || typeof G.mercadoTreinador !== 'object') G.mercadoTreinador = { chave:null, candidatos:[] };
+  if (!Array.isArray(G.mercadoTreinador.candidatos)) G.mercadoTreinador.candidatos = [];
+  if (!G.movsPlantel || typeof G.movsPlantel !== 'object') G.movsPlantel = { chave:null, usados:0 };
+  const key = janelaPlantelKey();
+  if (G.movsPlantel.chave !== key) G.movsPlantel = { chave:key, usados:0 };
+  const rawOrc = Number(G.orcamentoClube);
+  G.orcamentoClube = Number.isFinite(rawOrc) && rawOrc >= 0 ? Math.round(rawOrc) : calcularOrcamentoClube();
+}
+
+function gerarCandidatoPlantel(i = 0) {
+  const pos = pickRandom(POS_ELENCO_TREINADOR);
+  const base = clubeOvrEstimado(G?.clube, G?.liga) || 60;
+  const idade = rng(18,34);
+  const jovem = idade <= 21;
+  const ovr = Math.max(42, Math.min(90, base + rng(-10,8)));
+  return {
+    id:'cand_'+Date.now().toString(36)+'_'+i+'_'+rng(100,999),
+    nome:nomeJogadorElenco(i+20, pos), pos, idade, ovr,
+    potencial:Math.max(45, Math.min(95, ovr + (jovem ? rng(8,20) : rng(0,8)))),
+    energia:rng(70,100), moral:rng(45,72),
+    papel:ovr >= base+4 ? 'importante' : jovem ? 'jovem' : 'rotacao',
+    emLesao:false, nota:6.0,
+    custo:Math.max(8000, Math.round((ovr * ovr * 18) + (jovem ? 12000 : 0) + rng(-5000,9000))),
+    salario:Math.max(2500, Math.round((2500 + Math.max(0, ovr-45)*210 + rng(-800,1600)) / 500) * 500),
+  };
+}
+
+function garantirMercadoTreinador(force = false) {
+  if (!G || G.perfil !== 'treinador') return [];
+  normalizarGestaoPlantel();
+  const key = janelaPlantelKey();
+  if (force || G.mercadoTreinador.chave !== key || G.mercadoTreinador.candidatos.length < 5) {
+    G.mercadoTreinador = { chave:key, candidatos:Array.from({length:6}, (_,i)=>gerarCandidatoPlantel(i)) };
+  }
+  return G.mercadoTreinador.candidatos;
+}
+
+function vagasMovPlantel() {
+  normalizarGestaoPlantel();
+  return Math.max(0, 3 - (G.movsPlantel.usados||0));
+}
+
+function openGestaoPlantel() {
+  if (!G || G.perfil !== 'treinador') { showToast('Gestao de plantel disponivel no modo treinador.'); return; }
+  normalizarGestaoPlantel();
+  const janela = isJanelaTransferencia();
+  const mercado = garantirMercadoTreinador(false);
+  const elenco = normalizarElencoClube(false);
+  const insatisfeitos = elenco.filter(p => p.insatisfeito || p.moral < 35).slice(0,3);
+  const body = 'Orcamento: '+fmtMoney(G.orcamentoClube)+
+    '\nMovimentos da janela: '+(G.movsPlantel.usados||0)+'/3'+
+    '\nElenco: '+elenco.length+'/18'+
+    '\nJanela: '+(janela?'aberta':'fechada')+
+    '\nProxima janela: '+proximaJanelaTransferenciaTexto()+
+    '\nInsatisfeitos: '+(insatisfeitos.length ? insatisfeitos.map(p=>p.nome+' '+p.moral).join(', ') : 'nenhum alerta');
+  const botoes = [];
+  if (janela && vagasMovPlantel() > 0) {
+    mercado.slice(0,4).forEach((p,i)=>botoes.push({ icon:'ADD', text:p.nome+' '+p.pos+' OVR '+p.ovr+' '+fmtMoney(p.custo), acao:()=>contratarCandidatoPlantel(i) }));
+    elenco.slice().sort((a,b)=>(a.moral-b.moral)||(a.ovr-b.ovr)).slice(0,3).forEach(p=>botoes.push({ icon:'OUT', text:'Dispensar '+p.nome+' '+p.pos+' OVR '+p.ovr, acao:()=>dispensarJogadorPlantel(p.id) }));
+  } else {
+    botoes.push({ icon:'INFO', text:janela?'Limite da janela atingido':'Janela fechada', acao:()=>showToast(janela?'Limite de 3 movimentos atingido.':'Contratacoes apenas na janela. Proxima: '+proximaJanelaTransferenciaTexto()+'.') });
+  }
+  botoes.push({ icon:'REF', text:'Atualizar lista', acao:()=>{ garantirMercadoTreinador(true); closePopup(); openGestaoPlantel(); } });
+  botoes.push({ icon:'OK', text:'Fechar', acao:closePopup });
+  showPopup({ icon:'ELC', titulo:'Gestao de Plantel', corpo:body, botoes });
+}
+
+function contratarCandidatoPlantel(index) {
+  normalizarGestaoPlantel();
+  if (!isJanelaTransferencia()) { showToast('Janela de transferencia fechada.'); return; }
+  if (vagasMovPlantel() <= 0) { showToast('Limite de 3 movimentos na janela.'); return; }
+  if (G.elencoClube.length >= 18) { showToast('Elenco cheio. Dispense alguem antes.'); return; }
+  const mercado = garantirMercadoTreinador(false);
+  const p = mercado[index];
+  if (!p) return;
+  if (G.orcamentoClube < p.custo) { showToast('Orcamento insuficiente.'); return; }
+  G.orcamentoClube -= p.custo;
+  G.movsPlantel.usados = (G.movsPlantel.usados||0) + 1;
+  G.elencoClube.push({...p, id:'pl_'+Date.now().toString(36)+'_'+rng(100,999), ego:rng(35,65), jogos:0, banco:0, insatisfeito:false});
+  mercado.splice(index,1);
+  ajustarStatusClube(2, p.ovr >= mediaElenco('ovr') ? 2 : 0, -1);
+  addNoticia(G,'ADD',G.clube+' contratou '+p.nome+' por '+fmtMoney(p.custo)+'.');
+  closePopup(); updateTopBar(); saveGame(false); openGestaoPlantel();
+}
+
+function dispensarJogadorPlantel(id) {
+  normalizarGestaoPlantel();
+  if (!isJanelaTransferencia()) { showToast('Dispensas formais apenas na janela.'); return; }
+  if (vagasMovPlantel() <= 0) { showToast('Limite de 3 movimentos na janela.'); return; }
+  if (G.elencoClube.length <= 16) { showToast('Elenco minimo: 16 jogadores.'); return; }
+  const idx = G.elencoClube.findIndex(p=>p.id===id);
+  if (idx < 0) return;
+  const p = G.elencoClube[idx];
+  G.elencoClube.splice(idx,1);
+  G.movsPlantel.usados = (G.movsPlantel.usados||0) + 1;
+  if (['estrela','importante'].includes(p.papel)) ajustarStatusClube(-5,-5,-2);
+  else ajustarStatusClube(1,0,1);
+  addNoticia(G,'OUT',G.clube+' dispensou '+p.nome+'.');
+  closePopup(); updateTopBar(); saveGame(false); openGestaoPlantel();
+}
+
+function atualizarEgoPlantelSemanal() {
+  if (!G || G.perfil !== 'treinador') return;
+  normalizarGestaoPlantel();
+  let crise = 0;
+  G.elencoClube.forEach(p => {
+    p.ego = Math.max(0, Math.min(100, Math.round(Number(p.ego)||50)));
+    if (['estrela','importante'].includes(p.papel) && (p.banco||0) > (p.jogos||0) + 1) { p.moral = Math.max(0, p.moral - 2); p.ego = Math.min(100, p.ego + 2); }
+    if ((G.clubeStatus?.vitoriasSeguidas||0) >= 3 && p.papel === 'estrela') p.ego = Math.min(100, p.ego + 1);
+    p.insatisfeito = p.moral < 30 || p.ego > 85;
+    if (p.insatisfeito) crise++;
+  });
+  if (crise >= 3) { ajustarStatusClube(-3,-2,-2); addNoticia(G,'EGO','O plantel tem '+crise+' jogadores insatisfeitos.'); }
+}
+
+function openAmbienteClube() {
+  if (!G || G.perfil !== 'treinador') { showToast('Ambiente do clube disponivel no modo treinador.'); return; }
+  normalizarGestaoPlantel();
+  const st = G.clubeStatus || {};
+  const elenco = normalizarElencoClube(false);
+  const alertas = elenco.filter(p=>p.insatisfeito || p.moral < 35 || p.ego > 80).slice(0,5);
+  const corpo = 'Grupo: '+Math.round(st.confiancaGrupo||55)+'/100'+
+    '\nTorcida: '+Math.round(st.apoioTorcida||55)+'/100'+
+    '\nDiretoria: '+Math.round(st.apoioDiretoria||55)+'/100'+
+    '\n\nAlertas:\n'+(alertas.length ? alertas.map(p=>p.nome+' - '+p.papel+' | moral '+p.moral+' | ego '+p.ego).join('\n') : 'Ambiente controlado.');
+  showPopup({ icon:'AMB', titulo:'Ambiente do Clube', corpo, botoes:[{icon:'ELC', text:'Gerir plantel', acao:()=>{ closePopup(); openGestaoPlantel(); }},{icon:'OK', text:'Fechar', acao:closePopup}] });
+}
+
+function gerarCalendario(s) {
+  const ligaId = ligaIdAtual(s.liga);
+  const base = GLOBAL_BASES[ligaId];
+  const clubesBase = base?.clubes?.map(c=>c.nome) || [...(LIGAS[s.liga]?.clubes || CLUBES_PEQUENOS)];
+  const paresPorRodada = gerarCalendarioRoundRobinClubes(clubesBase);
+  const jogosClube = paresPorRodada.map((pares, idx) => {
+    const jogo = pares.find(p => p.home === s.clube || p.away === s.clube);
+    return jogo ? { ...jogo, rodada:idx+1 } : null;
+  }).filter(Boolean);
+
+  return Array.from({length:38}, (_,i) => {
+    const sem = i+1;
+    let tipo = 'livre';
+    if      (jogosClube[i]) tipo = 'partida';
+    else if (sem % 2 === 0) tipo = pickRandom(['treino','treino','evento_vida','evento_midia','livre']);
+
+    const entry = { semana:sem, tipo, passada:false };
+    if (tipo === 'partida') {
+      const jogo = jogosClube[i];
+      entry.adversario = jogo.home === s.clube ? jogo.away : jogo.home;
+      entry.isHome     = jogo.home === s.clube;
+      entry.rodada     = jogo.rodada;
+    }
+    return entry;
+  });
+}
+
+function getSemAtual()  { return G?.calendario.find(c => c.semana === G.semanaAtual) || null; }
+function getProxPartida(){ return G?.calendario.find(c => c.tipo==='partida' && c.semana >= G.semanaAtual && !c.passada) || null; }
+function isSemanaPartidaAtual() {
+  const sem = getSemAtual();
+  return !!(sem && sem.tipo === 'partida' && !sem.passada);
+}
+function bloquearAcaoVidaEmPartida(label = 'Esta acao') {
+  if (!isSemanaPartidaAtual()) return false;
+  showToast(label+' nao pode pular uma semana de partida. Jogue ou simule a partida.');
+  return true;
+}
+
+function clubeOvrEstimado(clube, liga = G?.liga) {
+  const clubes = LIGAS[liga]?.clubes || [];
+  const idx = clubes.indexOf(clube);
+  const ligaBase = LIGA_OVR?.[liga] || 70;
+  if (clube === G?.clube) return G.perfil === 'treinador' ? Math.max(58, Math.min(90, G.ovr || ligaBase)) : Math.max(58, Math.min(90, G.ovr || ligaBase));
+  if (idx < 0) return ligaBase + rng(-4, 4);
+  return Math.max(55, Math.min(88, ligaBase + 5 - idx + rng(-2, 2)));
+}
+
+function emptyTableRow(clube) {
+  return { clube, pts:0, j:0, g:0, e:0, d:0, gm:0, gc:0, sg:0 };
+}
+
+function gerarCalendarioRoundRobinClubes(clubesRaw) {
+  let clubes = [...(clubesRaw||[])].filter(Boolean);
+  if (clubes.length % 2 === 1) clubes.push(null);
+  const n = clubes.length;
+  const rodadas = [];
+  let arr = [...clubes];
+  for (let r=0; r<n-1; r++) {
+    const pares = [];
+    for (let i=0; i<n/2; i++) {
+      let home = arr[i], away = arr[n-1-i];
+      if (!home || !away) continue;
+      if ((r+i) % 2 === 1) [home, away] = [away, home];
+      pares.push({ home, away });
+    }
+    rodadas.push(pares);
+    arr = [arr[0], arr[n-1], ...arr.slice(1,n-1)];
+  }
+  const volta = rodadas.map(pares => pares.map(p => ({ home:p.away, away:p.home })));
+  return rodadas.concat(volta);
+}
+
+function initTabelaLiga(force = false) {
+  if (!G || !G.liga) return null;
+  const ligaId = ligaIdAtual(G.liga);
+  const base = GLOBAL_BASES[ligaId];
+  const clubes = [...(base?.clubes?.map(c=>c.nome) || LIGAS[G.liga]?.clubes || CLUBES_PEQUENOS)].filter(Boolean);
+  if (!clubes.includes(G.clube) && G.clube && G.clube !== 'Passe Livre') clubes.push(G.clube);
+  if (!force && GLOBAL_STATES[ligaId]?.ano === G.ano) {
+    G.tabelaLiga = GLOBAL_STATES[ligaId];
+    G.resultadosLiga = GLOBAL_STATES[ligaId].resultados || {};
+    G.rodadaLigaSimulada = GLOBAL_STATES[ligaId].rodadaAtual || 0;
+    return GLOBAL_STATES[ligaId];
+  }
+  const tabela = {};
+  clubes.forEach(c => { tabela[c] = emptyTableRow(c); });
+  GLOBAL_STATES[ligaId] = { id:ligaId, liga:G.liga, ano:G.ano, rodadaAtual:0, clubes, tabela, resultados:{}, transferencias:[], lesionados:[], ultimaAtualizacao:Date.now() };
+  G.tabelaLiga = GLOBAL_STATES[ligaId];
+  G.resultadosLiga = GLOBAL_STATES[ligaId].resultados;
+  G.rodadaLigaSimulada = 0;
+  persistirLigaState(ligaId);
+  return G.tabelaLiga;
+}
+
+function ordenarTabelaLiga() {
+  const t = initTabelaLiga(false);
+  if (!t) return [];
+  return Object.values(t.tabela).sort((a,b) =>
+    (b.pts-a.pts) || ((b.gm-b.gc)-(a.gm-a.gc)) || (b.gm-a.gm) || a.clube.localeCompare(b.clube)
+  );
+}
+
+function registrarResultadoClubeNaTabela(rodada, home, away, golsHome, golsAway) {
+  const t = initTabelaLiga(false);
+  if (!t || !home || !away) return;
+  rodada = rodada || G.rodada || 1;
+  const key = home+'_'+away;
+  if (!t.resultados) t.resultados = {};
+  if (!t.resultados[rodada]) t.resultados[rodada] = {};
+  if (t.resultados[rodada][key]) return;
+  [home, away].forEach(c => { if (!t.tabela[c]) { t.clubes.push(c); t.tabela[c] = emptyTableRow(c); } });
+  const h = t.tabela[home], a = t.tabela[away];
+  h.j++; a.j++;
+  h.gm += golsHome; h.gc += golsAway; h.sg = h.gm - h.gc;
+  a.gm += golsAway; a.gc += golsHome; a.sg = a.gm - a.gc;
+  if (golsHome > golsAway) { h.g++; h.pts += 3; a.d++; }
+  else if (golsHome < golsAway) { a.g++; a.pts += 3; h.d++; }
+  else { h.e++; a.e++; h.pts++; a.pts++; }
+  t.resultados[rodada][key] = { home, away, golsHome, golsAway };
+  t.ultimaAtualizacao = Date.now();
+  G.resultadosLiga = t.resultados;
+}
+
+function gerarParesRodadaLiga(rodada) {
+  const t = initTabelaLiga(false);
+  if (!t) return [];
+  return gerarCalendarioRoundRobinClubes(t.clubes)[Math.max(0, (rodada||1)-1)] || [];
+}
+
+function simularPlacarNpc(home, away) {
+  const forcaCasa = clubeOvrEstimado(home) + rng(-5,5) + 3;
+  const forcaFora = clubeOvrEstimado(away) + rng(-5,5);
+  const delta = forcaCasa - forcaFora;
+  const golsHome = Math.max(0, Math.round(delta/15 + 1.2 + rng(-1,2)));
+  const golsAway = Math.max(0, Math.round(-delta/15 + 0.8 + rng(-1,2)));
+  return { golsHome:Math.min(6,golsHome), golsAway:Math.min(6,golsAway) };
+}
+
+function simularRodadaLiga(rodada, skipClube = G?.clube) {
+  if (!G || !G.liga) return;
+  const t = initTabelaLiga(false);
+  if (!rodada || (t.rodadaAtual||0) >= rodada) return;
+  const pares = gerarParesRodadaLiga(rodada);
+  pares.forEach(({home, away}) => {
+    if (home === skipClube || away === skipClube) return;
+    const placar = simularPlacarNpc(home, away);
+    registrarResultadoClubeNaTabela(rodada, home, away, placar.golsHome, placar.golsAway);
+  });
+  t.rodadaAtual = Math.max(t.rodadaAtual||0, rodada);
+  G.rodadaLigaSimulada = t.rodadaAtual;
+  persistirLigaState(t.id || ligaIdAtual(G.liga));
+}
+
+function getPosicaoClubeTabela(clube = G?.clube) {
+  const tabela = ordenarTabelaLiga();
+  const idx = tabela.findIndex(r => r.clube === clube);
+  return idx >= 0 ? idx + 1 : null;
+}
+
+function ajustarStatusClube(deltaGrupo=0, deltaTorcida=0, deltaDiretoria=0) {
+  if (!G.clubeStatus) G.clubeStatus = { confiancaGrupo:55, apoioTorcida:55, apoioDiretoria:55, derrotasSeguidas:0, vitoriasSeguidas:0 };
+  G.clubeStatus.confiancaGrupo = Math.max(0, Math.min(100, (G.clubeStatus.confiancaGrupo||55) + deltaGrupo));
+  G.clubeStatus.apoioTorcida = Math.max(0, Math.min(100, (G.clubeStatus.apoioTorcida||55) + deltaTorcida));
+  G.clubeStatus.apoioDiretoria = Math.max(0, Math.min(100, (G.clubeStatus.apoioDiretoria||55) + deltaDiretoria));
+}
+
+function avaliarStatusClube(resultado) {
+  if (!G || !G.clubeStatus) return;
+  const r = String(resultado||'');
+  if (r.startsWith('vit')) {
+    G.clubeStatus.vitoriasSeguidas = (G.clubeStatus.vitoriasSeguidas||0) + 1;
+    G.clubeStatus.derrotasSeguidas = 0;
+    ajustarStatusClube(4, 4, 3);
+  } else if (r.startsWith('der')) {
+    G.clubeStatus.derrotasSeguidas = (G.clubeStatus.derrotasSeguidas||0) + 1;
+    G.clubeStatus.vitoriasSeguidas = 0;
+    const queda = G.clubeStatus.derrotasSeguidas >= 3 ? -8 : -4;
+    ajustarStatusClube(queda, queda, queda - 1);
+  } else {
+    G.clubeStatus.vitoriasSeguidas = 0;
+    G.clubeStatus.derrotasSeguidas = 0;
+    ajustarStatusClube(1, 0, 0);
+  }
+  const pos = getPosicaoClubeTabela();
+  if (pos && G.tabelaLiga?.clubes?.length) {
+    const total = G.tabelaLiga.clubes.length;
+    if (pos <= 3) ajustarStatusClube(1, 3, 3);
+    else if (pos > total - 3) ajustarStatusClube(-2, -4, -5);
+  }
+}
+
+function objetivoDiretoriaTexto() {
+  const pos = getPosicaoClubeTabela();
+  const total = G.tabelaLiga?.clubes?.length || 10;
+  if (!pos) return 'Classificacao pendente';
+  const meta = String(G.promessaEpoca?.meta || '').toLowerCase();
+  if (meta.includes('titulo') || meta.includes('título')) return pos === 1 ? 'cumprido' : 'falhou';
+  if (meta.includes('top 3')) return pos <= 3 ? 'cumprido' : 'falhou';
+  if (meta.includes('rebaixamento')) return pos <= total - 3 ? 'cumprido' : 'falhou';
+  return pos <= Math.ceil(total/2) ? 'cumprido' : 'falhou';
+}
+
+const CLUBES_POR_LIGA = {
+  'Premier League':['Arsenal','Chelsea','Liverpool','Man City','Tottenham'],
+  'La Liga':['Real Madrid','Barcelona','Atlético Madrid','Sevilla','Valencia'],
+  'Bundesliga':['Bayern','Dortmund','RB Leipzig','Frankfurt'],
+  'Serie A':['Juventus','Inter','Milan','Roma','Napoli'],
+  'Brasileirão':['Flamengo','Palmeiras','São Paulo','Corinthians','Grêmio'],
+  'Primeira Liga':['Benfica','Porto','Sporting CP','Braga'],
+};
+
+function isJanelaTransferencia(semana = G?.semanaAtual || 1) {
+  return (semana >= 1 && semana <= 4) || (semana >= 19 && semana <= 22);
+}
+
+function proximaJanelaTransferenciaTexto(semana = G?.semanaAtual || 1) {
+  if (isJanelaTransferencia(semana)) return 'agora';
+  for (let s = Math.max(1, semana); s <= 38; s++) {
+    if (isJanelaTransferencia(s)) return 'semana '+s;
+  }
+  return 'inicio da proxima temporada';
+}
+
+function isPasseLivre() {
+  return G?.perfil === 'jogador' && (G.tipoContrato === 'livre' || !G.contrato || !G.clube);
+}
+
+function scoreMercadoJogador() {
+  if (!G) return 0;
+  const idadePenalty = Math.max(0, (G.idade || 18) - 30) * 4;
+  const semContratoBonus = isPasseLivre() ? 8 : 0;
+  return Math.max(0, (G.ovr || 50) + Math.round((G.fama || 0) * 0.7) + semContratoBonus - idadePenalty);
+}
+
+function ligasPorScoreMercado(score) {
+  if (score >= 88) return ['Premier League','La Liga','Bundesliga','Serie A'];
+  if (score >= 76) return ['Serie A','Bundesliga','Primeira Liga','Brasileirão'];
+  if (score >= 62) return ['Brasileirão','Primeira Liga'];
+  return ['Brasileirão'];
+}
+
+function gerarClubeMercado() {
+  const score = scoreMercadoJogador();
+  const ligas = ligasPorScoreMercado(score);
+  const nat = NACIONALIDADES.find(n => n.key === G.nacionalidade);
+  if (nat?.ligaAfinidade && Math.random() < 0.35) ligas.push(nat.ligaAfinidade);
+  const liga = pickRandom(ligas);
+  const clubes = CLUBES_POR_LIGA[liga] || CLUBES_PEQUENOS;
+  const candidatos = clubes.filter(c => c !== G.clube);
+  return { liga, clube: pickRandom(candidatos.length ? candidatos : clubes), score };
+}
+
+function entrarPasseLivre(motivo = 'contrato encerrado') {
+  if (!G || G.perfil !== 'jogador') return;
+  if (G.contrato) G.historico_contratos.push({...G.contrato, fim:G.ano, motivo});
+  if (G.clube) {
+    G.historicoCarreira = [...(G.historicoCarreira||[]), {
+      clube:G.clube, liga:G.liga, ate:G.ano,
+      jogos:G.jogos_total||0, gols:G.gols_total||0, assists:G.assists_total||0
+    }];
+  }
+  G.contrato = null;
+  G.clube = 'Passe Livre';
+  G.liga = 'Sem Liga';
+  G.salario = 0;
+  G.tipoContrato = 'livre';
+  G.semContratoDesde = G.ano;
+  G.objetivoAtivo = null;
+  G.furos = (G.furos||[]).map(f => ({...f, ativo:false}));
+  G.clubeStatus = { confiancaGrupo:55, apoioTorcida:55, apoioDiretoria:55, derrotasSeguidas:0, vitoriasSeguidas:0 };
+  G.tabelaLiga = null;
+  G.resultadosLiga = {};
+  G.rodadaLigaSimulada = 0;
+  G.moral = Math.max(25, (G.moral||50) - 8);
+  addNoticia(G,'LIVRE',G.nome+' ficou sem contrato e entrou nos passes livres.');
+}
+
+function gerarRumorTransferencia(clube, liga, score) {
+  if (!G) return null;
+  const grande = ['Real Madrid','Barcelona','Man City','Bayern','Liverpool','Juventus','Arsenal','Chelsea'].includes(clube);
+  const rumor = {
+    clube, liga, semana:G.semanaAtual, ano:G.ano, ativo:true,
+    impactoMoral: grande ? 8 : 4,
+    impactoFama: grande ? 3 : 1,
+    impactoEntrosamento: grande && G.clube && G.clube !== 'Passe Livre' ? -4 : 0,
+    score: score || scoreMercadoJogador()
+  };
+  G.rumores = [...(G.rumores||[]), rumor].slice(-8);
+  G.moral = Math.min(100, G.moral + rumor.impactoMoral);
+  G.fama = Math.min(100, G.fama + rumor.impactoFama);
+  if (rumor.impactoEntrosamento) G.entrosamento = Math.max(0, (G.entrosamento||30) + rumor.impactoEntrosamento);
+  addNoticia(G,'RUMOR','Rumor: '+clube+' observa '+G.nome+'.');
+  return rumor;
+}
+
+function buscarPropostaPasseLivre() {
+  if (!G || !isPasseLivre()) return null;
+  const mercado = gerarClubeMercado();
+  const chance = Math.min(0.88, 0.25 + mercado.score / 130);
+  if (Math.random() > chance) {
+    showToast('Nenhuma proposta chegou esta semana.');
+    return null;
+  }
+  const proposta = gerarProposta(mercado.clube, mercado.liga, 'Passe livre');
+  iniciarNegociacao(proposta, false);
+  return proposta;
+}
+
+function aposentarJogadorVirarTreinador() {
+  if (!G || G.perfil !== 'jogador') return;
+  G.carreiraJogadorEncerrada = true;
+  G.perfil = 'treinador';
+  G.grupoPos = 'TRE';
+  G.posicao = 'TRE';
+  G.formacao = G.formacao || '4-3-3';
+  G.tipoContrato = 'treinador';
+  G.clube = G.clube && G.clube !== 'Passe Livre' ? G.clube : 'Clube Local';
+  G.liga = G.liga && G.liga !== 'Sem Liga' ? G.liga : 'Brasileirão';
+  G.salario = Math.max(4500, Math.round(((G.fama||5)*280 + (G.ovr||50)*140) / 500) * 500);
+  G.contratoFim = G.ano + 1;
+  G.contrato = { clube:G.clube, liga:G.liga, salario:G.salario, anos:1, bonusGol:0, bonusAssist:0, clausula:0, tipo:'treinador' };
+  G.semContratoDesde = null;
+  G.objetivoAtivo = null;
+  G.furos = [];
+  G.rumores = [];
+  G.taticaTreinador = { formacao:G.formacao || '4-3-3', estilo:'equilibrado' };
+  G.licencaTreinador = G.licencaTreinador || { nivel:'C', cursoAtivo:null, historicoCursos:[], ultimoPedidoSemana:null };
+  normalizarLicencaTreinador();
+  normalizarClubeStatus();
+  G.elencoClube = gerarElencoClubePersistente(G.clube, G.liga);
+  G.orcamentoClube = calcularOrcamentoClube();
+  G.mercadoTreinador = { chave:null, candidatos:[] };
+  G.movsPlantel = { chave:null, usados:0 };
+  refreshOVR();
+  addNoticia(G,'TRE',G.nome+' encerrou a carreira de jogador e virou treinador.');
+  saveGame(false);
+  renderHomeScreen(); populateProfileScreen(); updateTopBar();
+  showToast('Nova carreira iniciada: treinador.');
+}
+
+const MORADIAS = [
+  { id:'simples', icon:'🏠', nome:'Quarto simples', preco:0, custoSemana:0, moralBonus:0, energiaBonus:0, desc:'Sem luxo, mas sem custo fixo.' },
+  { id:'apartamento', icon:'🏢', nome:'Apartamento', preco:25000, custoSemana:900, moralBonus:2, energiaBonus:1, desc:'Mais conforto e rotina melhor.' },
+  { id:'casa', icon:'🏡', nome:'Casa familiar', preco:70000, custoSemana:1800, moralBonus:4, energiaBonus:2, desc:'Espaco e estabilidade fora de campo.' },
+  { id:'mansao', icon:'🏰', nome:'Mansao', preco:180000, custoSemana:4500, moralBonus:7, energiaBonus:3, famaBonus:2, desc:'Status alto, custo alto.' },
+];
+
+const CARROS = [
+  { id:'popular', icon:'🚗', nome:'Carro popular', preco:18000, custoSemana:250, moralBonus:1, famaBonus:1, desc:'Pratico para a rotina.' },
+  { id:'esportivo', icon:'🏎️', nome:'Esportivo', preco:80000, custoSemana:1200, moralBonus:2, famaBonus:4, desc:'Status visivel e manutencao salgada.' },
+  { id:'luxo', icon:'🚘', nome:'Carro de luxo', preco:180000, custoSemana:2500, moralBonus:4, famaBonus:8, desc:'Imagem de estrela, despesa de estrela.' },
+];
+
+function getMoradiaAtual() {
+  return MORADIAS.find(m => m.id === (G?.moradia || 'simples')) || MORADIAS[0];
+}
+
+function getCarroAtual() {
+  return CARROS.find(c => c.id === G?.carro) || null;
+}
+
+function valorRevendaBem(item) {
+  return item ? Math.round((item.preco || 0) * 0.55) : 0;
+}
+
+function calcularTrocaBem(atual, novo) {
+  const revenda = valorRevendaBem(atual);
+  const liquido = (novo?.preco || 0) - revenda;
+  return { revenda, liquido };
+}
+
+function calcularLimiteCreditoVida() {
+  return Math.max(5000, Math.round((G?.salario || 0) / 2));
+}
+
+function aplicarControleDividaVida(origem = 'custo') {
+  if (!G || G.dinheiro >= 0) return;
+  const limite = calcularLimiteCreditoVida();
+  G.moral = Math.max(0, G.moral - 4);
+  if (G.dinheiro >= -limite) {
+    addNoticia(G, 'CRED', 'Saldo negativo. A pressao financeira afetou a moral.');
+    showToast('Credito usado: '+fmtMoney(Math.abs(G.dinheiro))+'/'+fmtMoney(limite));
+    return;
+  }
+  const perdas = [];
+  if (G.carro) {
+    const carro = getCarroAtual();
+    perdas.push(carro ? carro.nome : 'carro');
+    G.carro = null;
+  }
+  if (G.moradia && G.moradia !== 'simples') {
+    const moradia = getMoradiaAtual();
+    perdas.push(moradia ? moradia.nome : 'moradia');
+    G.moradia = 'simples';
+  }
+  G.dinheiro = -limite;
+  G.moral = Math.max(0, G.moral - 8);
+  addNoticia(G, 'CRED', 'Limite de credito estourado. '+(perdas.length ? 'Bens perdidos: '+perdas.join(', ')+'.' : 'Corte de gastos emergencial aplicado.'));
+  showToast('Limite de credito estourado. Vida simplificada.');
+}
+
+function normalizarFamilia() {
+  if (!G.familia || typeof G.familia !== 'object') {
+    G.familia = { estado: G.relacionamento || 'solteiro', filhos: G.filhos || 0 };
+  }
+  if (!['solteiro','namoro','casado'].includes(G.familia.estado)) G.familia.estado = 'solteiro';
+  G.familia.filhos = Math.max(0, Math.min(3, Math.round(Number(G.familia.filhos)||0)));
+  G.relacionamento = G.familia.estado === 'solteiro' ? null : G.familia.estado;
+  G.filhos = G.familia.filhos;
+}
+
+function calcularCustoVidaSemanal() {
+  if (!G) return { total:0, linhas:[], moralBonus:0, energiaBonus:0, imposto:0 };
+  normalizarFamilia();
+  const linhas = [];
+  let total = 0, moralBonus = 0, energiaBonus = 0;
+  const moradia = getMoradiaAtual();
+  if (moradia.custoSemana > 0) {
+    total += moradia.custoSemana;
+    moralBonus += moradia.moralBonus || 0;
+    energiaBonus += moradia.energiaBonus || 0;
+    linhas.push(moradia.icon+' '+moradia.nome+': '+fmtMoney(moradia.custoSemana)+'/sem');
+  } else {
+    linhas.push(moradia.icon+' '+moradia.nome+': sem custo fixo');
+  }
+  const carro = getCarroAtual();
+  if (carro) {
+    total += carro.custoSemana;
+    moralBonus += carro.moralBonus || 0;
+    linhas.push(carro.icon+' '+carro.nome+': '+fmtMoney(carro.custoSemana)+'/sem');
+  }
+  if (G.familia.estado === 'casado') {
+    total += 700; moralBonus += 2;
+    linhas.push('💍 Familia: '+fmtMoney(700)+'/sem');
+  } else if (G.familia.estado === 'namoro') {
+    total += 250; moralBonus += 1;
+    linhas.push('💕 Relacionamento: '+fmtMoney(250)+'/sem');
+  }
+  if (G.familia.filhos > 0) {
+    const custoFilhos = G.familia.filhos * 500;
+    total += custoFilhos; moralBonus += G.familia.filhos;
+    linhas.push('👶 Filhos: '+fmtMoney(custoFilhos)+'/sem');
+  }
+  const imposto = G.salario > 25000 ? Math.round((G.salario - 25000) * 0.08) : 0;
+  if (imposto > 0) {
+    total += imposto;
+    linhas.push('🧾 Impostos: '+fmtMoney(imposto)+'/sem');
+  }
+  return { total, linhas, moralBonus, energiaBonus, imposto };
+}

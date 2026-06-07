@@ -1,0 +1,518 @@
+
+// ─── HOME RENDER ─────────────────────────────────────────────
+
+function renderHomeScreen() {
+  if (!G) return;
+  initTabelaLiga(false);
+  if (G.perfil === 'treinador') {
+    normalizarLicencaTreinador();
+    normalizarElencoClube(false);
+    refreshOVR();
+    gerarObjetivoDiretoriaTemporada();
+  }
+  // Mostrar card de talentos se player tiver arquétipo
+  // Update agente info on home card
+  const agInfoEl = document.getElementById('agente-home-info');
+  if (agInfoEl) {
+    const agt = AGENTES[G?.tipoAgente||'nenhum'];
+    agInfoEl.textContent = G?.tipoAgente&&G.tipoAgente!=='nenhum'
+      ? agt.icon+' '+agt.nome
+      : 'Sem agente — contratar';
+  }
+  const cardTal = document.getElementById('card-talentos');
+  if (cardTal) {
+    const show = G.perfil==='jogador' && (G.arquetipo || (G.pontosArquetipo||0)>0 || G.jogos>=5);
+    cardTal.style.display = show ? 'block' : 'none';
+    const info = document.getElementById('talentos-info');
+    if (info) {
+      if (G.arquetipo) {
+        const arq = getArquetipoPorGrupo(G.grupoPos).find(a=>a.key===G.arquetipo);
+        info.textContent = (arq?arq.icon+' ':'')+( arq?arq.nome:'Arquétipo ativo')+' · ⭐'+(G.pontosArquetipo||0)+' pts';
+      } else {
+        info.textContent = 'Escolha seu arquétipo!';
+        const badge = document.getElementById('talentos-badge');
+        if (badge) badge.style.display='block';
+      }
+    }
+  }
+  document.getElementById('home-name').textContent  = G.nome.split(' ')[0];
+  document.getElementById('season-title').textContent = G.clube;
+  const posLiga = getPosicaoClubeTabela();
+  document.getElementById('season-sub').textContent   = `${G.liga} - ${G.ano}` + (posLiga ? ` - ${posLiga}º` : '');
+  document.getElementById('sg').textContent = G.gols;
+  document.getElementById('sa').textContent = G.assists;
+  document.getElementById('sj').textContent = G.jogos;
+  document.getElementById('training-info').textContent = `Energia: ${G.energia}/${energiaCap()}`;
+  const tabelaInfo = document.getElementById('tabela-home-info');
+  if (tabelaInfo) {
+    const st = G.clubeStatus || {};
+    const proxTabela = getProxPartida()?.adversario || '--';
+    tabelaInfo.textContent = (posLiga ? `${posLiga}o na liga` : 'Classificacao') + ` - Prox: ${proxTabela}` + (G.perfil==='treinador' ? ` - Plantel ${(G.elencoClube||[]).length}` : ` - Diretoria ${Math.round(st.apoioDiretoria||55)}`);
+  }
+
+  const prox = getProxPartida();
+  const semAtual = getSemAtual();
+  if (prox) {
+    document.getElementById('next-match-info').textContent =
+      semAtual?.tipo==='partida' ? `vs ${prox.adversario} — HOJE!` : `vs ${prox.adversario} (Sem.${prox.semana})`;
+    const badge = document.getElementById('match-badge');
+    badge.className = 'abadge gold'+(semAtual?.tipo==='partida'?' show':'');
+  }
+
+  const btn = document.getElementById('btn-advance');
+  if (semAtual?.tipo==='partida') {
+    btn.classList.add('match-now');
+    btn.innerHTML = '⚽ Ir para a Partida!';
+  } else {
+    btn.classList.remove('match-now');
+    btn.innerHTML = `⏩ Avançar para Semana ${G.semanaAtual}`;
+  }
+  renderCalendario();
+  renderNoticias();
+  // Mostrar ações do treinador
+  const trAct = document.getElementById('home-treinador-actions');
+  if (trAct) trAct.style.display = G.perfil==='treinador' ? 'flex' : 'none';
+  // Mini objetivo na home
+  const objEl = document.getElementById('home-objetivo-mini');
+  if (objEl) {
+    if (G?.perfil === 'treinador' && G.promessaEpoca) {
+      const posAtual = getPosicaoClubeTabela();
+      const corStatus = 'var(--gold)';
+      objEl.style.display = 'block';
+      objEl.innerHTML = `<div style="font-size:11px;color:var(--gold);font-weight:700">DIR Objetivo da Diretoria</div>
+        <div style="font-size:10.5px;color:var(--text2);margin:2px 0">${G.promessaEpoca.meta}</div>
+        <div style="font-size:10px;color:${corStatus};font-weight:700">Status: Em andamento ${posAtual ? ' - '+posAtual+'º na liga' : ''}</div>`;
+    } else {
+      const obj = G?.objetivoAtivo;
+      if (obj && obj.status==='ativo') {
+        const pct = Math.min(100, Math.round(obj.progresso/obj.meta*100));
+        objEl.style.display = 'block';
+        objEl.innerHTML = `<div style="font-size:11px;color:var(--gold);font-weight:700">?? Objetivo: ${obj.clubeInteressado}</div>
+          <div style="font-size:10.5px;color:var(--text2);margin:2px 0">${obj.descricao}</div>
+          <div style="height:4px;border-radius:2px;background:var(--bg3);margin-top:4px"><div style="height:4px;border-radius:2px;background:var(--gold);width:${pct}%"></div></div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">${obj.progresso}/${obj.meta} ? ${obj.prazoRestante} jogos</div>`;
+      } else {
+        objEl.style.display = 'none';
+      }
+    }
+  }
+  // Estoque badge
+  if (G) {
+    const inv = G.inventario || {};
+    const total = Object.values(inv).reduce((a,b)=>a+b,0);
+    const el = document.getElementById('estoque-info');
+    if (el) el.textContent = total > 0 ? `${total} item(s) no estoque` : 'Compre na loja 🛍️';
+  }
+}
+
+function renderCalendario() {
+  if (!G) return;
+  const wrap = document.getElementById('cal-weeks');
+  document.getElementById('cal-rodada').textContent = `Sem.${G.semanaAtual}`;
+  const icons = {partida:'BOL',treino:'TRN',evento_vida:'VID',evento_midia:'MID',livre:'--'};
+  wrap.innerHTML = G.calendario.map(c => {
+    const janela = isJanelaTransferencia(c.semana);
+    let cls = c.passada ? 'past' : '';
+    if (!c.passada) {
+      if (c.semana===G.semanaAtual) cls='current';
+      else if (c.tipo==='partida')  cls='match';
+      else if (c.tipo.startsWith('evento')) cls='event';
+    }
+    const mandoCampo = c.tipo === 'partida' ? (c.isHome ? 'C' : 'F') : '';
+    const detalhe = mandoCampo + (janela ? 'J' : '');
+    const title = c.tipo === 'partida'
+      ? `Rodada ${c.rodada}: ${c.isHome?'casa':'fora'} vs ${c.adversario}${janela ? ' (Janela)' : ''}`
+      : (janela ? 'Janela de transferencia' : c.tipo);
+    return `<div class="cal-week ${cls}" title="${title}"><div class="cw-n">${c.semana}</div><div class="cw-icon">${icons[c.tipo]||'--'}</div><div style="font-size:8px;color:var(--text2);height:10px">${detalhe}</div></div>`;
+  }).join('');
+  const idx = G.calendario.findIndex(c=>c.semana===G.semanaAtual);
+  if (idx>2) setTimeout(()=>{ wrap.scrollLeft=(idx-2)*56; },50);
+}
+
+function renderNoticias() {
+  const list = document.getElementById('news-list');
+  if (!G.noticias.length) { list.innerHTML='<div class="empty-notice">Nenhum registro ainda.</div>'; return; }
+  list.innerHTML = G.noticias.slice(-8).reverse().map(n=>
+    `<div class="news-item"><div class="news-icon">${n.icon}</div><div>
+      <div class="news-headline">${n.texto}</div>
+      <div class="news-time">Semana ${n.semana}, ${n.ano}</div>
+    </div></div>`
+  ).join('');
+}
+
+// ─── TOP BAR ─────────────────────────────────────────────────
+
+
+function renderMidiaScreen() {
+  if (!G) return;
+  normalizarMidia();
+  const ativos = G.midia.patrocinios.map(id => PATROCINIOS_MIDIA.find(p=>p.id===id)).filter(Boolean);
+  const renda = ativos.reduce((sum,p)=>sum+(p.bonusSemana||0),0);
+  const resumo = document.getElementById('midia-resumo-section');
+  if (resumo) resumo.innerHTML =
+    '<div class="agente-card">'+
+      '<div class="agente-header"><div class="agente-icon">MID</div><div><div class="agente-nome">Imagem Publica</div><div class="agente-sub">Fama '+G.fama+'/100 | '+G.midia.seguidores.toLocaleString('pt-BR')+' seguidores</div></div></div>'+
+      '<div class="promessa-body">Entrevistas: '+G.midia.entrevistas+' | Patrocinios ativos: '+ativos.length+' | Renda semanal: '+fmtMoney(renda)+'</div>'+
+    '</div>';
+
+  const entrevista = document.getElementById('midia-entrevista-section');
+  const midiaBloq = G.midia.ultimaAcaoSemana === (G.ano+'-'+G.semanaAtual);
+  if (entrevista) entrevista.innerHTML =
+    '<div class="sec-lbl" style="margin-bottom:8px">Entrevistas</div>'+
+    '<div class="agente-card">'+
+      '<div class="promessa-body">Escolhas de resposta afetam fama, moral, entrosamento e seguidores.</div>'+
+      (midiaBloq?'<div class="promessa-body" style="color:var(--gold);margin-top:6px">Limite semanal de midia manual atingido.</div>':'')+
+      '<button class="btn-match-ctrl" style="width:100%;margin-top:10px;opacity:'+(midiaBloq?'0.55':'1')+'" onclick="'+(midiaBloq?'midiaManualBloqueada()':'abrirEntrevistaMidia(false)')+'">Dar entrevista agora</button>'+
+      '<button class="btn-match-ctrl" style="width:100%;margin-top:8px;opacity:'+(midiaBloq?'0.55':'1')+'" onclick="'+(midiaBloq?'midiaManualBloqueada()':'gerarEventoRedeSocial(false)')+'">Responder redes sociais</button>'+
+    '</div>';
+
+  const pats = document.getElementById('midia-patrocinios-section');
+  if (pats) {
+    pats.innerHTML = '<div class="sec-lbl" style="margin-bottom:8px">Patrocinios</div>' + PATROCINIOS_MIDIA.map(p => {
+      const ativo = G.midia.patrocinios.includes(p.id);
+      const locked = (G.fama||0) < p.famaReq;
+      return '<div class="agente-card">'+
+        '<div class="agente-header"><div class="agente-icon">'+p.icon+'</div><div><div class="agente-nome">'+p.nome+'</div><div class="agente-sub">Fama requerida: '+p.famaReq+' | Renda: '+fmtMoney(p.bonusSemana)+'/sem</div></div></div>'+
+        '<div class="promessa-body">'+p.desc+'</div>'+
+        '<button class="btn-match-ctrl" style="width:100%;margin-top:10px" '+(ativo||locked?'disabled':'')+' onclick="contratarPatrocinioMidia(&quot;'+p.id+'&quot;)">'+(ativo?'Ativo':locked?'Bloqueado':'Assinar | premio '+fmtMoney(p.premio))+'</button>'+
+      '</div>';
+    }).join('');
+  }
+
+  const redes = document.getElementById('midia-redes-section');
+  if (redes) {
+    const hist = G.midia.redesEventos.slice(-5).reverse();
+    redes.innerHTML = '<div class="sec-lbl" style="margin-bottom:8px">Destaque</div>'+
+      renderMediaFeaturedNews()+
+      '<div class="sec-lbl" style="margin:12px 0 8px">Arquivo de Noticias</div>'+
+      renderMediaNewsArchive(12)+
+      '<div class="sec-lbl" style="margin:12px 0 8px">Redes Sociais</div>'+
+      (hist.length ? hist.map(e => '<div class="news-item"><div class="news-icon">NET</div><div><div class="news-headline">'+e.titulo+'</div><div class="news-time">Semana '+e.semana+', '+e.ano+'</div></div></div>').join('') : '<div class="empty-notice">Sem eventos recentes nas redes.</div>');
+  }
+}
+
+function contratarPatrocinioMidia(id) {
+  if (!G) return;
+  normalizarMidia();
+  const p = PATROCINIOS_MIDIA.find(x => x.id === id);
+  if (!p) return;
+  if (G.midia.patrocinios.includes(id)) { showToast('Patrocinio ja ativo.'); return; }
+  if ((G.fama||0) < p.famaReq) { showToast('Fama insuficiente.'); return; }
+  G.midia.patrocinios.push(id);
+  G.dinheiro += p.premio || 0;
+  if (p.moral) G.moral = Math.min(100, G.moral + p.moral);
+  if (p.fama) G.fama = Math.min(100, G.fama + p.fama);
+  addNoticia(G,'PAT',G.nome+' assinou patrocinio: '+p.nome+'.');
+  updateTopBar(); renderMidiaScreen(); saveGame(false);
+  showToast('Patrocinio assinado: +'+fmtMoney(p.premio||0));
+}
+
+function updateTopBar() {
+  if (!G) return;
+  const nac = NACIONALIDADES.find(n=>n.key===G.nacionalidade);
+  const flag = nac?.label?.split(' ')[0] || '🌍';
+  document.getElementById('top-name').textContent = G.nome;
+  document.getElementById('top-club').textContent = `${G.clube} · ${posLabel(G.posicao)}`;
+  document.getElementById('top-age').textContent  = `${flag} ${G.idade}a · OVR ${G.ovr||'—'}`;
+  const _cap = energiaCap();
+  document.getElementById('s-energia').textContent = G.energia + (_cap > 100 ? '/'+_cap : '');
+  document.getElementById('s-moral').textContent   = G.moral;
+  document.getElementById('s-fama').textContent    = G.fama;
+  document.getElementById('s-grana').textContent   = fmtMoney(G.dinheiro);
+}
+
+function posLabel(key) {
+  for (const g of Object.keys(POS_ESP)) {
+    const f = POS_ESP[g].find(p=>p.key===key);
+    if (f) return f.label;
+  }
+  return key||'—';
+}
+
+// ─── NAV ─────────────────────────────────────────────────────
+
+const SCREENS = ['home','treino','partida','loja','midia','agente','perfil'];
+
+function navTo(id) {
+  SCREENS.forEach(s => {
+    document.getElementById('screen-'+s)?.classList.remove('active');
+    document.getElementById('nav-'+s)?.classList.remove('active');
+  });
+  document.getElementById('screen-'+id)?.classList.add('active');
+  document.getElementById('nav-'+id)?.classList.add('active');
+  document.getElementById('main-content').scrollTop = 0;
+
+  if (id==='home')    renderHomeScreen();
+  if (id==='treino')  { aplicarTreinoHero(); updateEnergiaBar(); populateAttrsGrid(); updateTreinoStatus(); }
+  if (id==='perfil')  populateProfileScreen();
+  if (id==='loja')    renderLojaScreen();
+  if (id==='agente')  renderAgenteScreen();
+  if (id==='midia')   renderMidiaScreen();
+  if (id==='partida') {
+    if (!MS || MS.done) {
+      // Só fazer setup se a semana atual é de partida — nunca pular semanas
+      const semAtual = getSemAtual();
+      const ehPartidaHoje = semAtual?.tipo === 'partida' && !semAtual.passada;
+      if (ehPartidaHoje) {
+        setupMatchScreen(semAtual);
+      } else {
+        // Mostrar tela estática — sem avançar tempo
+        document.getElementById('m-league').textContent = G?.liga || '—';
+        document.getElementById('m-day').textContent    = 'Sem partida agendada hoje';
+        document.getElementById('m-home').textContent   = G?.clube || '—';
+        document.getElementById('m-away').textContent   = '—';
+        ['m-hs','m-as'].forEach(i=>{ const el=document.getElementById(i); if(el)el.textContent='0'; });
+        document.getElementById('m-min').textContent    = 'PRÉ-JOGO';
+        document.getElementById('m-prog').style.width   = '0%';
+        document.getElementById('match-log').innerHTML  = '<div class="log-entry" style="color:var(--text2);text-align:center;padding:12px">Nenhuma partida esta semana.<br>Avance o calendário na tela inicial.</div>';
+        document.getElementById('btn-play').style.display   = 'none';
+        document.getElementById('btn-pause').style.display  = 'none';
+        document.getElementById('btn-lineup').style.display = 'none';
+        const lp = document.getElementById('lineup-panel');
+        if (lp) lp.style.display = 'none';
+      }
+    }
+    // Se MS existe e ainda está em andamento — não fazer nada (só mostra o estado atual)
+  }
+}
+
+// ─── POPUP ───────────────────────────────────────────────────
+
+// Fila de popups: evita sobreposição quando múltiplos eventos disparam ao mesmo tempo
+window._popupQueue = [];
+window._popupAtivo = false;
+
+function showPopup({ icon, titulo, corpo, botoes }) {
+  // Se já há um popup aberto, enfileirar para exibir depois
+  if (window._popupAtivo) {
+    window._popupQueue.push({ icon, titulo, corpo, botoes });
+    return;
+  }
+  _renderPopup({ icon, titulo, corpo, botoes });
+}
+
+function _renderPopup({ icon, titulo, corpo, botoes }) {
+  window._popupAtivo = true;
+  window._popupClickLocked = false;
+  document.getElementById('pm-content').innerHTML = `
+    <div class="pm-icon">${icon}</div>
+    <div class="pm-title">${titulo}</div>
+    <div class="pm-body">${corpo}</div>
+    <div class="pm-choices">${botoes.map((b,i)=>`
+      <button class="pm-btn" onclick="popupAction(${i})">
+        <span class="ch-icon">${b.icon}</span>
+        <span class="ch-text">${b.text||b.texto}</span>
+        ${b.odds?`<span class="ch-odds">${b.odds}</span>`:''}
+      </button>`).join('')}
+    </div>`;
+  window._ppBtns = botoes;
+  document.getElementById('popup-overlay').classList.add('active');
+}
+
+function popupAction(i) {
+  if (window._popupClickLocked) return;
+  window._popupClickLocked = true;
+  const acao = window._ppBtns?.[i]?.acao;
+  if (acao) acao();
+  else closePopup();
+  setTimeout(() => {
+    const ov = document.getElementById('popup-overlay');
+    if (ov?.classList.contains('active')) window._popupClickLocked = false;
+  }, 150);
+}
+function closePopup() {
+  const ov = document.getElementById('popup-overlay');
+  if (!ov) return;
+  ov.classList.remove('active');
+  window._ppBtns = null;
+  window._popupAtivo = false;
+  ov.onclick = closePopupOutside;
+  // Exibir próximo popup da fila, se existir
+  if (window._popupQueue.length > 0) {
+    const proximo = window._popupQueue.shift();
+    setTimeout(() => _renderPopup(proximo), 120);
+  }
+}
+function closePopupOutside(e) { if(e.target===document.getElementById('popup-overlay')) closePopup(); }
+
+function openVidaPopup() {
+  const energiaCor = G.energia > 60 ? 'OK' : G.energia > 30 ? 'MED' : 'LOW';
+  const custo = calcularCustoVidaSemanal();
+  const moradia = getMoradiaAtual();
+  const carro = getCarroAtual();
+  normalizarFamilia();
+  const bodyLines = [
+    energiaCor+' Energia: '+G.energia+'/'+energiaCap(),
+    'Saude: '+G.saude+'/100',
+    'Salario: '+fmtSalarioDual(G.salario),
+    'Dinheiro: '+fmtMoney(G.dinheiro),
+    '',
+    'Moradia: '+moradia.nome,
+    'Carro: '+(carro?carro.nome:'Sem carro'),
+    'Familia: '+G.familia.estado+' / filhos: '+G.familia.filhos,
+    'Custo semanal: '+fmtMoney(custo.total),
+    ...custo.linhas
+  ];
+  const vidaImg = assetCardHtml(assetMoradiaId(G.moradia), moradia.nome);
+  showPopup({ icon:'VIDA', titulo:'Vida Pessoal',
+    corpo: vidaImg + '<div class="asset-popup-text">' + bodyLines.join('\n') + '</div>',
+    botoes:[
+      {icon:'VIDA',text:'Gerir vida fora de campo',acao:()=>{ closePopup(); openVidaExpandida(); }},
+      {icon:'ZZZ',text:'Descansar - avanca o dia (+25 energia)',acao:()=>{
+        if (G.treinoHoje >= 3) {
+          showToast('Voce ja usou o dia! Avance a semana normalmente.');
+          closePopup(); return;
+        }
+        closePopup(); descansar(); updateTopBar();
+      }},
+      {icon:'FOOD',text:'Comer bem (+saude, -R$800)',acao:()=>{
+        if (G.dinheiro < 800) { showToast('Dinheiro insuficiente!'); closePopup(); return; }
+        G.saude=Math.min(100,G.saude+8);
+        G.dinheiro=Math.max(0,G.dinheiro-800);
+        const d = 6; G.energia = Math.min(energiaCap(), G.energia + d);
+        closePopup(); updateTopBar(); saveGame(false);
+        showToast('Saude +8, Energia +'+d+'!');
+      }},
+      {icon:'X',text:'Fechar',acao:closePopup}
+    ]
+  });
+}
+
+
+// SISTEMA DE LOJA
+
+const CONSUMIVEIS = [
+  {
+    id: 'energetico',
+    icon: '⚡', nome: 'Energético',
+    desc: '+10% de energia imediato e +5% de bônus na recuperação diária. Limite: 2/dia e 3/semana.',
+    preco: 1500,
+    efeitoLabel: '+10% energia agora · +5% recuperação/dia',
+    tipo: 'energetico',
+    destaque: true
+  },
+  {
+    id: 'gel',
+    icon: '💧', nome: 'Gel de Carboidrato',
+    desc: '+8% de energia imediato. Sem limite especial. Bom antes de treino.',
+    preco: 600,
+    efeitoLabel: '+8% energia agora',
+    tipo: 'gel',
+    destaque: false
+  },
+  {
+    id: 'refeicao_pro',
+    icon: '🥗', nome: 'Refeição Premium',
+    desc: '+6% energia e +12 de saúde. Boa para recuperação a longo prazo.',
+    preco: 2500,
+    efeitoLabel: '+6% energia · +12 saúde',
+    saudeBonus: 12,
+    tipo: 'refeicao',
+    destaque: false
+  },
+  {
+    id: 'sono_pro',
+    icon: '🛌', nome: 'Cápsula de Sono',
+    desc: 'Dobra a recuperação do próximo dia. Não dá energia agora, mas no dia seguinte você recupera o dobro.',
+    preco: 3500,
+    efeitoLabel: '2× recuperação no próximo dia · +8 moral',
+    moralBonus: 8,
+    tipo: 'sono',
+    destaque: false
+  }
+];
+
+// Garante que o estado tem inventário
+function getInventario() {
+  if (!G.inventario) G.inventario = {};
+  return G.inventario;
+}
+
+function renderLojaScreen() {
+  if (!G) return;
+  document.getElementById('loja-sub').textContent = `Seu dinheiro: ${fmtMoney(G.dinheiro)}`;
+
+  // Grid de itens à venda
+  const grid = document.getElementById('loja-consumiveis');
+  grid.innerHTML = CONSUMIVEIS.map(item => {
+    const podePagar = G.dinheiro >= item.preco;
+    return `
+      <div class="loja-item ${item.destaque?'destaque':''} ${!podePagar?'esgotado':''}"
+           onclick="comprarItem('${item.id}')">
+        <div class="li-icon">${item.icon}</div>
+        <div class="li-name">${item.nome}</div>
+        <div class="li-desc">${item.desc}</div>
+        <div class="li-ef">${item.efeitoLabel}</div>
+        <div class="li-preco">${fmtMoney(item.preco)}</div>
+      </div>`;
+  }).join('');
+
+  renderEstoque();
+  renderInvestimentos();
+}
+
+const INVESTIMENTOS = [
+  { id:'academia_vip',  icon:'🏋️', nome:'Academia VIP',    desc:'Musculação e fisioterapia de elite. Eleva o cap de energia de 100 → 105.',  efeitoLabel:'Renda: +R$500/sem · Cap energia: 100→105 · +3/recuperação', preco:15000, rendaSemana:500, energiaMax:5 },
+  { id:'chuteira_pro',  icon:'👟', nome:'Linha de Chuteiras',desc:'Sua marca de chuteiras personalizada.',efeitoLabel:'Renda: +R$2.000/sem · Fama +2',       preco:40000, rendaSemana:2000, fama:2 },
+  { id:'marca_pessoal', icon:'⭐', nome:'Marca Pessoal',    desc:'Seja sua própria empresa de marketing.',efeitoLabel:'Renda: +R$5.000/sem · Fama +5',       preco:100000, rendaSemana:5000, fama:5 },
+  { id:'campo_treino',  icon:'🏟️', nome:'Campo de Treinamento',desc:'Treino particular com staff premium.', efeitoLabel:'Treinos rendem +1 extra/sessão',    preco:60000, rendaSemana:0, treinoBonus:1 },
+];
+
+function renderInvestimentos() {
+  if (!G) return;
+  const grid = document.getElementById('loja-investimentos');
+  if (!grid) return;
+  const inv = G.inventario||{};
+  grid.innerHTML = INVESTIMENTOS.map(item => {
+    const comprado = !!inv[item.id];
+    const podePagar = G.dinheiro >= item.preco;
+    if (comprado) {
+      return '<div class="loja-item" style="border-color:var(--green)">'+
+        '<div class="li-icon">'+item.icon+'</div>'+
+        '<div class="li-name">'+item.nome+' <span style="color:var(--green);font-size:10px">✅ ATIVO</span></div>'+
+        '<div class="li-ef">'+item.efeitoLabel+'</div>'+
+        '</div>';
+    }
+    return '<div class="loja-item '+(podePagar?'':'esgotado')+'" onclick="comprarInvestimento(\'' + item.id + '\')">'+
+      '<div class="li-icon">'+item.icon+'</div>'+
+      '<div class="li-name">'+item.nome+'</div>'+
+      '<div class="li-desc">'+item.desc+'</div>'+
+      '<div class="li-ef">'+item.efeitoLabel+'</div>'+
+      '<div class="li-preco">'+fmtMoney(item.preco)+'</div>'+
+      '</div>';
+  }).join('');
+}
+
+function comprarInvestimento(id) {
+  if (!G) return;
+  const item = INVESTIMENTOS.find(i=>i.id===id);
+  if (!item) return;
+  // Guard: já possui este investimento
+  if ((G.inventario||{})[item.id]) {
+    showToast('✅ Já tens este investimento ativo!'); return;
+  }
+  if (G.dinheiro < item.preco) { showToast('💸 Dinheiro insuficiente!'); return; }
+  // Guard extra: lock de clique duplo rápido
+  if (comprarInvestimento._lock) return;
+  comprarInvestimento._lock = true;
+  setTimeout(() => { comprarInvestimento._lock = false; }, 1500);
+  showPopup({
+    icon:item.icon, titulo:'Investir em '+item.nome+'?',
+    corpo:item.desc+'\n\n'+item.efeitoLabel+'\n\nInvestimento: '+fmtMoney(item.preco)+'\nSaldo atual: '+fmtMoney(G.dinheiro),
+    botoes:[
+      { icon:'💰', text:'Investir', acao:()=>{
+        // BUG FIX: re-validar saldo no momento da confirmação
+        if (G.dinheiro < item.preco) { showToast('💸 Saldo insuficiente!'); closePopup(); return; }
+        if ((G.inventario||{})[item.id]) { showToast('✅ Já tens este investimento!'); closePopup(); return; }
+        G.dinheiro -= item.preco;
+        const inv = G.inventario||{};
+        inv[item.id] = 1; G.inventario = inv;
+        if (item.fama) G.fama = Math.min(100, G.fama + item.fama);
+        closePopup(); renderLojaScreen(); updateTopBar(); saveGame(false);
+        addNoticia(G,item.icon,G.nome+' investiu em '+item.nome+'! Renda passiva ativa.');
+        showToast(item.icon+' '+item.nome+' ativo! Rende por semana.');
+      }},
+      { icon:'❌', text:'Cancelar', acao:closePopup }
+    ]
+  });
+}

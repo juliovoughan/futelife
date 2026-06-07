@@ -1,0 +1,250 @@
+
+    <!-- CRIAÇÃO -->
+    <div id="screen-create" class="screen">
+      <div class="create-hero">
+        <div class="logo">Fute<span>Life</span></div>
+        <div class="tagline">Sua carreira. Suas escolhas. Seu legado.</div>
+        <span class="pitch-icon">🏟️</span>
+      </div>
+      <div class="create-body">
+        <div>
+          <div class="sec-lbl">Seu nome</div>
+          <div class="input-wrap"><input id="input-nome" type="text" placeholder="Digite seu nome..." maxlength="22" autocomplete="off" autocorrect="off" spellcheck="false" oninput="validateCreate()"/></div>
+        </div>
+        <div>
+          <div class="sec-lbl">Perfil</div>
+          <div class="cgrid">
+            <div class="ccard" id="c-jogador" onclick="selectPerfil('jogador')"><div class="ci">🥾</div><div class="ct">Jogador</div><div class="cd">Viva dentro de campo</div></div>
+            <div class="ccard" id="c-treinador" onclick="selectPerfil('treinador')"><div class="ci">📋</div><div class="ct">Treinador</div><div class="cd">Comande o time</div></div>
+          </div>
+        </div>
+
+        <div class="subsec" id="sub-j">
+          <div>
+            <div class="sec-lbl">Modo de início</div>
+            <div class="cgrid">
+              <div class="ccard" id="c-aleatorio" onclick="selectModo('aleatorio')"><div class="ci">🎲</div><div class="ct">Aleatório</div><div class="cd">Sorte decide seu começo</div></div>
+              <div class="ccard" id="c-base" onclick="selectModo('base')"><div class="ci">🌱</div><div class="ct">Categoria Base</div><div class="cd">Começa com 16 anos na base</div></div>
+            </div>
+          </div>
+          <div class="info-badge" id="info-modo" style="display:none"></div>
+          <div>
+            <div class="sec-lbl">Posição</div>
+            <div class="cgrid">
+              <div class="ccard" id="c-pos-ATA" onclick="selectPos('ATA')"><div class="ci">⚡</div><div class="ct">Atacante</div><div class="cd">CF · ALE · SA</div></div>
+              <div class="ccard" id="c-pos-MEI" onclick="selectPos('MEI')"><div class="ci">🎯</div><div class="ct">Meia</div><div class="cd">MC · MAO · VOL · MAE</div></div>
+              <div class="ccard" id="c-pos-DEF" onclick="selectPos('DEF')"><div class="ci">🛡️</div><div class="ct">Defensor</div><div class="cd">CB · LD · LE</div></div>
+              <div class="ccard" id="c-pos-GOL" onclick="selectPos('GOL')"><div class="ci">🧤</div><div class="ct">Goleiro</div><div class="cd">GK</div></div>
+            </div>
+          </div>
+          <div id="sub-pos-esp" style="display:none">
+            <div class="sec-lbl">Posição específica</div>
+            <div id="grid-pos-esp" class="cgrid"></div>
+          </div>
+          <div>
+            <div class="sec-lbl">Representação</div>
+            <div class="toggle-row" id="tog-emp" onclick="toggleEmpresario()">
+              <div class="toggle-info"><div class="toggle-title">💼 Contratar Empresário</div><div class="toggle-desc">+30% chance de propostas melhores. R$5k/mês.</div></div>
+              <div class="tswitch"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nacionalidade (fora do sub-j — aparece para jogador E treinador) -->
+        <div id="sub-nac" class="subsec">
+          <div>
+            <div class="sec-lbl">Nacionalidade</div>
+            <div id="grid-nac" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+          </div>
+        </div>
+
+        <div class="subsec" id="sub-t">
+          <div class="info-badge"><b>Treinador</b> – 30 anos, clube pequeno. Formações livres.</div>
+          <div>
+            <div class="sec-lbl">Formação inicial</div>
+            <div class="cgrid">
+              <div class="ccard" id="c-f-442"  onclick="selectFormacao('4-4-2')"><div class="ci">🟩</div><div class="ct">4-4-2</div><div class="cd">Clássico equilibrado</div></div>
+              <div class="ccard" id="c-f-433"  onclick="selectFormacao('4-3-3')"><div class="ci">⚡</div><div class="ct">4-3-3</div><div class="cd">Ofensivo e veloz</div></div>
+              <div class="ccard" id="c-f-532"  onclick="selectFormacao('5-3-2')"><div class="ci">🛡️</div><div class="ct">5-3-2</div><div class="cd">Sólido defensivo</div></div>
+              <div class="ccard" id="c-f-4231" onclick="selectFormacao('4-2-3-1')"><div class="ci">🎯</div><div class="ct">4-2-3-1</div><div class="cd">Controle criativo</div></div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-start" id="btn-start" disabled onclick="startGame()">⚽ COMEÇAR JORNADA</button>
+      </div>
+    </div>
+
+    <!-- HOME -->
+    <div id="screen-home" class="screen">
+      <div class="home-greeting">
+        <div class="hi">Bem-vindo de volta,</div>
+        <div class="nm" id="home-name">Jogador</div>
+      </div>
+      <div class="season-card">
+        <div class="s-label">⚽ Temporada atual</div>
+        <div class="s-title" id="season-title">—</div>
+        <div class="s-sub"   id="season-sub">—</div>
+        <div class="s-stats">
+          <div class="s-stat"><div class="n" id="sg">0</div><div class="l">Gols</div></div>
+          <div class="s-stat"><div class="n" id="sa">0</div><div class="l">Assists</div></div>
+          <div class="s-stat"><div class="n" id="sj">0</div><div class="l">Jogos</div></div>
+        </div>
+      </div>
+      <div id="home-objetivo-mini" style="display:none;background:#1a2a1a;border:1.5px solid var(--gold);border-radius:10px;padding:10px 14px;margin-bottom:10px"></div>
+      <div class="cal-card">
+        <div class="cal-header">📅 Calendário — <span id="cal-rodada">Sem.1</span></div>
+        <div class="cal-weeks" id="cal-weeks"></div>
+      </div>
+      <div id="home-treinador-actions" style="display:none;gap:8px;padding:0 0 8px;flex-wrap:wrap;">
+        <button class="btn-match-ctrl" onclick="fazerPromessaDiretoria()" style="flex:1;min-width:140px">🤝 Promessa</button>
+        <button class="btn-match-ctrl" onclick="openTaticaTreinador()" style="flex:1;min-width:140px">📋 Tática</button>
+        <button class="btn-match-ctrl" onclick="openGestaoPlantel()" style="flex:1;min-width:140px">ELC Plantel</button>
+        <button class="btn-match-ctrl" onclick="openAmbienteClube()" style="flex:1;min-width:140px">AMB Ambiente</button>
+        <button class="btn-match-ctrl" onclick="openArquetipoMenu()" style="flex:1;min-width:140px;display:none" id="btn-arq-home">🌟 Talentos</button>
+      </div>
+      <button class="btn-advance" id="btn-advance" onclick="advanceWeek()">⏩ Avançar semana</button>
+      <div class="actions-grid">
+        <div class="action-card" onclick="navTo('partida')">
+          <div class="ai">🏆</div><div class="at">Partida</div>
+          <div class="as" id="next-match-info">Próximo jogo</div>
+          <div class="abadge gold" id="match-badge">HOJE</div>
+        </div>
+        <div class="action-card" onclick="openTabelaLiga()">
+          <div class="ai">TAB</div><div class="at">Tabela</div>
+          <div class="as" id="tabela-home-info">Classificacao da liga</div>
+        </div>
+        <div class="action-card" onclick="navTo('treino')">
+          <div class="ai">💪</div><div class="at">Treinar</div>
+          <div class="as" id="training-info">Melhore atributos</div>
+        </div>
+        <div class="action-card" onclick="openVidaPopup()">
+          <div class="ai">🏠</div><div class="at">Vida Pessoal</div><div class="as">Descanso e finanças</div>
+        </div>
+        <div class="action-card" onclick="abrirEstoqueRapido()">
+          <div class="ai">🎒</div><div class="at">Estoque</div><div class="as" id="estoque-info">Consumíveis</div>
+        </div>
+        <div class="action-card" onclick="navTo('midia')">
+          <div class="ai">📱</div><div class="at">Mídia</div><div class="as">Fama e notícias</div>
+        </div>
+        <div class="action-card" id="card-talentos" onclick="openArquetipoMenu()" style="display:none">
+          <div class="ai">🌟</div><div class="at">Talentos</div>
+          <div class="as" id="talentos-info">Arquétipos e habilidades</div>
+          <div class="abadge gold" id="talentos-badge" style="display:none">NOVO</div>
+        </div>
+        <div class="action-card" onclick="navTo('agente')">
+          <div class="ai">💼</div><div class="at">Agente</div>
+          <div class="as" id="agente-home-info">Contratos e sondagens</div>
+        </div>
+        <div class="action-card" onclick="openVidaExpandida()">
+          <div class="ai">🌆</div><div class="at">Vida Fora</div><div class="as">Eventos, jantar, investimentos</div>
+        </div>
+      </div>
+      <div class="news-section">
+        <div class="sec-title">📰 Registro recente</div>
+        <div id="news-list"><div class="empty-notice">Nenhuma notícia ainda.</div></div>
+      </div>
+    </div>
+
+    <!-- PARTIDA -->
+    <div id="screen-partida" class="screen">
+      <div class="match-topbar">
+        <div class="league" id="m-league">—</div>
+        <div class="mday" id="m-day">Rodada —</div>
+      </div>
+      <div class="scoreboard">
+        <div class="score-teams">
+          <div class="score-team"><div class="score-team-name" id="m-home">—</div><div class="score-num" id="m-hs">0</div></div>
+          <div class="score-sep">×</div>
+          <div class="score-team"><div class="score-num" id="m-as">0</div><div class="score-team-name" id="m-away">—</div></div>
+        </div>
+        <div class="match-minute" id="m-min">PRÉ-JOGO</div>
+      </div>
+      <div class="match-prog-bar"><div class="match-prog-fill" id="m-prog" style="width:0%"></div></div>
+      <!-- REUNIÃO PRÉ-JOGO (visível antes do jogo iniciar) -->
+      <div id="reuniao-container" style="display:none; padding:12px 16px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">🏟️ Vestiário — Pré-Jogo</div>
+        <div id="reuniao-moral-info" style="font-size:11.5px;color:var(--text2);margin-bottom:10px"></div>
+        <div class="sec-lbl" style="margin-bottom:6px">Escolha seu discurso:</div>
+        <div id="reuniao-discursos" style="display:flex;flex-direction:column;gap:7px"></div>
+        <!-- Painel de resultado do D20 -->
+        <div id="reuniao-resultado" style="display:none;margin-top:12px;background:#1a2a1a;border:1.5px solid var(--green);border-radius:10px;padding:12px 14px">
+          <div id="reuniao-res-titulo" style="font-size:13px;font-weight:700;color:var(--green)"></div>
+          <div id="reuniao-res-desc" style="font-size:12px;color:var(--text);margin-top:4px"></div>
+          <div id="reuniao-res-buff" style="font-size:11.5px;color:var(--gold);margin-top:6px"></div>
+        </div>
+      </div>
+      <div id="moment-card" class="moment-card">
+        <div class="moment-kicker" id="moment-kicker">Momento do jogo</div>
+        <div class="moment-text" id="moment-text">A partida ainda nao comecou.</div>
+        <div class="moment-meta" id="moment-meta">Escolha o foco e inicie o jogo para acompanhar os lances.</div>
+      </div>
+      <div class="match-log" id="match-log"></div>
+      <!-- Barra de foco do jogador -->
+      <div id="focus-bar" class="focus-bar" style="display:none">
+        <div class="focus-label">🎯 Foco:</div>
+        <button class="focus-btn active" id="fb-equilibrado" onclick="setFocus('equilibrado')">Equilibrado</button>
+        <button class="focus-btn"        id="fb-ataque"  onclick="setFocus('ataque')">⚔️ Ataque</button>
+        <button class="focus-btn" id="fb-transicao" onclick="setFocus('transicao')">Transicao</button>
+        <button class="focus-btn"        id="fb-defesa"  onclick="setFocus('defesa')">🛡️ Defesa</button>
+      </div>
+      <div class="match-btns">
+        <button class="btn-advance" id="btn-play" onclick="startMatch()">▶ Jogar Partida</button>
+        <button class="btn-match-ctrl" id="btn-pause" onclick="togglePause()" style="display:none">⏸ Pause</button>
+        <button class="btn-match-ctrl" id="btn-lineup" onclick="openLineupMenu()" style="display:none">📋 Elenco</button>
+        <button class="btn-match-ctrl" id="btn-palestra" onclick="palestraIntervalo()" style="display:none">🎙️ Palestra</button>
+      </div>
+      <!-- Info de dificuldade (visível no pré-jogo) -->
+      <div id="match-diff-info" class="match-diff-info"></div>
+      <!-- Painel de formação/subs (overlay) -->
+      <div id="lineup-panel" class="lineup-panel" style="display:none">
+        <div class="lineup-header">
+          <span id="lp-title">📋 Elenco</span>
+          <button class="lp-close" onclick="closeLineupMenu()">✕</button>
+        </div>
+        <div id="lp-tabs" class="lp-tabs">
+          <button class="lp-tab active" onclick="lpTab('home')">🟢 Mandante</button>
+          <button class="lp-tab" onclick="lpTab('away')">🔴 Visitante</button>
+          <button class="lp-tab" onclick="lpTab('subs')">🔄 Substituições</button>
+        </div>
+        <div id="lp-content" class="lp-content"></div>
+      </div>
+    </div>
+
+    <!-- TREINO -->
+    <div id="screen-treino" class="screen">
+      <div class="screen-title">💪 Treino</div>
+
+      <!-- Painel de status diário -->
+      <div id="treino-asset-hero" class="asset-hero">
+        <div class="asset-hero-title">Centro de Treinamento</div>
+        <div class="asset-hero-sub">Escolha o foco do dia e gerencie energia antes da proxima partida.</div>
+      </div>
+      <div id="treino-status" class="treino-status-card"></div>
+
+      <div class="energy-row">
+        <div class="energy-lbl"><span>⚡ Energia</span><span id="energia-txt">75/100</span></div>
+        <div class="bar-track"><div class="bar-fill bfg" id="energia-bar" style="width:75%"></div></div>
+      </div>
+      <div class="attrs-grid" id="attrs-grid"></div>
+      <div class="divider"></div>
+      <div class="sec-lbl" style="margin-top:8px">Skills Especiais</div>
+      <div id="skills-section"></div>
+    </div>
+
+    <!-- LOJA -->
+    <div id="screen-loja" class="screen">
+      <div class="screen-title">🛍️ Loja</div>
+      <div class="screen-sub" id="loja-sub">Seu dinheiro: —</div>
+
+      <div class="sec-lbl">⚡ Consumíveis de Energia</div>
+      <div class="loja-grid" id="loja-consumiveis"></div>
+
+      <div class="divider" style="margin:16px 0"></div>
+      <div class="sec-lbl" style="margin-bottom:8px">🎒 Seu Estoque</div>
+      <div id="loja-estoque" class="estoque-wrap"></div>
+
+      <div class="divider" style="margin:16px 0"></div>
+      <div class="sec-lbl" style="margin-bottom:6px">💰 Investimentos Passivos</div>
+      <div class="loja-grid" id="loja-investimentos"></div>
+    </div>

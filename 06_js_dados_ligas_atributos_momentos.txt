@@ -1,0 +1,569 @@
+
+function talvezGerarDespesaSurpresa() {
+  if (!G) return 0;
+  if (!Array.isArray(G.despesasSurpresa)) G.despesasSurpresa = [];
+  const atuais = G.despesasSurpresa.filter(d => d.ano === G.ano);
+  const jaNestaSemana = atuais.some(d => d.semana === G.semanaAtual);
+  if (atuais.length >= 2 || jaNestaSemana || Math.random() > 0.04) return 0;
+  const eventos = [
+    { icon:'🧾', tipo:'conta_extra', texto:'Conta extra de temporada', valor:rng(900,2200), moral:-1 },
+    { icon:'🎁', tipo:'presente_familia', texto:'Presente para a familia', valor:rng(700,1800), moral:+1 },
+    { icon:'🏠', tipo:'reparo_casa', texto:'Reparo domestico inesperado', valor:rng(1200,3500), moral:-1 },
+  ];
+  if (getCarroAtual()) eventos.push({ icon:'🔧', tipo:'manutencao_carro', texto:'Manutencao inesperada do carro', valor:rng(1500,4500), moral:-1 });
+  const ev = pickRandom(eventos);
+  G.despesasSurpresa.push({ ano:G.ano, semana:G.semanaAtual, tipo:ev.tipo, valor:ev.valor });
+  G.ultimaDespesaSurpresaAno = G.ano;
+  G.dinheiro -= ev.valor;
+  G.moral = Math.max(0, Math.min(100, G.moral + (ev.moral||0)));
+  addNoticia(G, ev.icon, ev.texto+': -'+fmtMoney(ev.valor)+'.');
+  showToast(ev.icon+' Despesa surpresa: -'+fmtMoney(ev.valor));
+  aplicarControleDividaVida('surpresa');
+  return ev.valor;
+}
+
+function aplicarCustosVidaSemanal() {
+  if (!G) return { total:0, linhas:[] };
+  const resumo = calcularCustoVidaSemanal();
+  if (resumo.total > 0) {
+    G.dinheiro -= resumo.total;
+    G.impostosPagos = (G.impostosPagos || 0) + (resumo.imposto || 0);
+    G.moral = Math.min(100, G.moral + resumo.moralBonus);
+    G.energia = Math.min(energiaCap(), G.energia + resumo.energiaBonus);
+    addNoticia(G, '🏠', 'Custo de vida semanal: -'+fmtMoney(resumo.total)+'.');
+    if (G.dinheiro < 0) {
+      aplicarControleDividaVida('custo');
+    } else {
+      showToast('🏠 Custo de vida: -'+fmtMoney(resumo.total));
+    }
+  }
+  talvezGerarDespesaSurpresa();
+  return resumo;
+}
+
+// ─── ADVANCE ─────────────────────────────────────────────────
+
+let _advanceDebounce = false;
+function advanceWeek() {
+  if (!G) return;
+  // Debounce: evitar duplo disparo
+  if (_advanceDebounce) return;
+  _advanceDebounce = true;
+  setTimeout(() => { _advanceDebounce = false; }, 400);
+
+  const sem = getSemAtual();
+  if (!sem) { showToast('Temporada encerrada!'); return; }
+
+  if (sem.tipo === 'partida') {
+    if (isPasseLivre()) {
+      showPopup({
+        icon:'LIVRE', titulo:'Sem clube',
+        corpo:'Você está nos passes livres. Sem contrato, não há partida oficial esta semana.\n\nProcure propostas no agente ou aposente para virar treinador.',
+        botoes:[
+          {icon:'BUSCA', text:'Buscar proposta', acao:()=>{ closePopup(); buscarPropostaPasseLivre(); }},
+          {icon:'TRE', text:'Aposentar e virar treinador', acao:()=>{ closePopup(); aposentarJogadorVirarTreinador(); }},
+          {icon:'OK', text:'Avançar semana', acao:()=>{ closePopup(); passarSemana(true); }}
+        ]
+      });
+      return;
+    }
+    G.partidaAtual = sem;
+    navTo('partida');
+    setupMatchScreen(sem);
+    return;
+  }
+  if (sem.tipo === 'treino') {
+    showPopup({ icon:'💪', titulo:`Sem.${G.semanaAtual} — Treino`, corpo:'O técnico convocou treino especial.\nEscolha o foco:',
+      botoes:[
+        {icon:'⚡', text:'Treino físico intenso',     acao:()=>{ closePopup(); navTo('treino'); }},
+        {icon:'🧠', text:'Treino tático coletivo',     acao:()=>{ closePopup(); processTreinoEvento(); }},
+        {icon:'😴', text:'Treino leve + descanso',     acao:()=>{ closePopup(); descansar(); }}
+      ]
+    });
+    return;
+  }
+  if (sem.tipo === 'evento_vida')  { gerarEventoVida(); return; }
+  if (sem.tipo === 'evento_midia') { gerarEventoMidia(); return; }
+  passarSemana();
+}
+
+function passarSemana(skipRecovery = false) {
+  avançarLesao();
+  checkLesaoPartida();
+  avancarCursoTreinador();
+  atualizarEgoPlantelSemanal();
+  // Renda passiva dos investimentos
+  const inv = G.inventario||{};
+  let rendaTotal = 0;
+  INVESTIMENTOS.forEach(item => {
+    if (inv[item.id] && item.rendaSemana > 0) rendaTotal += item.rendaSemana;
+  });
+  if (rendaTotal > 0) {
+    G.dinheiro += rendaTotal;
+    showToast('💰 Renda passiva: +R$'+rendaTotal.toLocaleString('pt-BR'));
+    updateTopBar();
+  }
+  const rendaMidia = aplicarRendaPatrociniosSemanal();
+  if (rendaMidia > 0) {
+    showToast('Patrocinios: +R$'+rendaMidia.toLocaleString('pt-BR'));
+    updateTopBar();
+  }
+  const sem = getSemAtual();
+  if (sem?.tipo === 'partida' && sem.rodada) {
+    G.rodada = sem.rodada;
+    simularSemanaGlobal(sem.rodada);
+  }
+  if (sem) sem.passada = true;
+
+  // Recuperação de energia baseada nos treinos do dia (antes de avançar)
+  // skipRecovery=true: evento/ação já aplicou o efeito de energia diretamente
+  if (!skipRecovery) aplicarRecuperacaoDiaria(sem);
+
+  G.semanaAtual++;
+  // Salário: pagar apenas se não foi pago já nesta semana (ex: pela tela de resultado)
+  if (!G._salarioPago) {
+    G.dinheiro += Math.floor(G.salario);
+  }
+  G._salarioPago = false; // reset para próxima semana
+  aplicarCustosVidaSemanal();
+  G.moral = Math.max(30, G.moral - rng(0,2));
+
+  // Resetar contadores diários ao virar o dia
+  G.treinoHoje = 0;
+  G.energeticoHoje = 0;
+  // Resetar semanal apenas a cada 7 semanas (simulação simplificada — reseta toda semana de partida)
+  const proxSem = G.calendario.find(c => c.semana === G.semanaAtual);
+  if (proxSem?.tipo === 'partida') G.energeticoSemana = 0;
+
+  if (G.semanaAtual > 38) { fimDeTemporada(); return; }
+  updateTopBar(); renderHomeScreen(); saveGame(false);
+  const prox = getSemAtual();
+  if (prox?.tipo === 'partida') setTimeout(()=>showToast('⚽ Dia de jogo amanhã!'),300);
+}
+
+// ─── RECUPERAÇÃO DIÁRIA DE ENERGIA ───────────────────────────
+// Dia de jogo            → 0% (nada)
+// 0 treinos (descanso)   → 25%
+// 1 treino               → 20%
+// 2 treinos              → 15%
+// 3 treinos              → 10%
+// Energético tomado hoje → +5% por unidade (limite 2/dia, 3/semana)
+
+// Helper: tecto de energia (105 se academia_vip, senão 100)
+function energiaCap() { return (G?.inventario?.academia_vip) ? 105 : 100; }
+
+function aplicarRecuperacaoDiaria(semAtual) {
+  if (!G) return 0;
+
+  // Dia de jogo ainda por jogar → sem recuperação extra (o jogo é o acontecimento do dia)
+  // Se a partida já foi jogada (passada=true), a recuperação deve correr normalmente
+  if (semAtual && semAtual.tipo === 'partida' && !semAtual.passada) return 0;
+
+  const treinos   = Math.min(G.treinoHoje || 0, 3);
+  const energ     = Math.min(G.energeticoHoje || 0, 2);   // cap no limite diário
+
+  // % base conforme treinos feitos no dia
+  const TABELA_PCT = [0.25, 0.20, 0.15, 0.10];
+  const pctBase  = TABELA_PCT[treinos];
+  const pctBonus = energ * 0.05;
+  const pctTotal = pctBase + pctBonus;
+
+  // Academia VIP: +3 energia extra na recuperação diária
+  const invBonus = (G.inventario||{})['academia_vip'] ? 3 : 0;
+  // Cápsula de Sono: dobra a recuperação e consome o efeito
+  const sonoMult = G.sonoAtivo ? 2 : 1;
+  if (G.sonoAtivo) { G.sonoAtivo = false; }
+  const ganho = Math.round(100 * pctTotal * sonoMult) + invBonus;
+  const antes = G.energia;
+  G.energia = Math.min(energiaCap(), G.energia + ganho);
+  const delta = G.energia - antes;
+
+  // Toast informativo
+  let msg = treinos === 0 ? '💤 Descanso' : `💪 ${treinos} treino(s)`;
+  msg += ` → +${delta} energia (${Math.round(pctTotal * 100)}%)`;
+  if (energ > 0) msg += ` · ⚡ energético +${energ * 5}%`;
+  showToast(msg);
+  return delta;
+}
+
+
+
+function processTreinoEvento() {
+  if (G.perfil === 'treinador') {
+    treinoColetivo('tatico');
+    passarSemana(true);
+    return;
+  }
+  const keys = Object.keys(G.attrs);
+  const k = pickRandom(keys);
+  G.attrs[k] = Math.min(99, G.attrs[k] + rng(1,2));
+  G.moral = Math.min(100, G.moral+3);
+  G.treinoHoje = Math.max(G.treinoHoje||0, 1); // conta como 1 treino para a recuperação
+  showToast(`✅ Treino tático: ${ATTR_LABELS[k]||k} +1`);
+  passarSemana(); // recuperação normal baseada no treinoHoje
+}
+
+function descansar() {
+  if (bloquearAcaoVidaEmPartida('Descanso')) return;
+  // Descanso manual: recupera energia diretamente — NÃO via aplicarRecuperacaoDiaria
+  const ganho = 25;
+  const antes = G.energia;
+  G.energia = Math.min(energiaCap(), G.energia + ganho);
+  const delta = G.energia - antes;
+  G.moral = Math.min(100, G.moral + 5);
+  G.treinoHoje = 3; // bloquear treinos adicionais
+  showToast(delta > 0 ? `😴 Descansou! +${delta} energia (dia consumido)` : '😴 Já estava descansado (dia consumido).');
+  passarSemana(true); // skip recovery: descansar JÁ aplicou o ganho
+}
+
+function gerarEventoVida() {
+  // Evento de polêmica nas redes sociais (30% de chance de aparecer)
+  if (Math.random() < 0.30) {
+    gerarEventoPolemicaRedes();
+    return;
+  }
+  const evs = [
+    {icon:'👨‍👩‍👦',titulo:'Família',corpo:'Sua família veio te visitar! Momentos especiais fora do campo.',moral:+10,energia:+5,btn:'❤️ Curtir a família'},
+    {icon:'🎉',titulo:'Festa',corpo:'Festa com os companheiros de equipe! Entrosamento vai melhorar.',moral:+8,energia:-12,entrosamento:+8,btn:'🥳 Curtir a festa'},
+    {icon:'😷',titulo:'Gripado',corpo:'Ficou gripado. Semana difícil.',moral:-5,energia:-20,btn:'💊 Descansar em casa'},
+    {icon:'📞',titulo:'Proposta',corpo:'Seu agente diz que um clube estrangeiro perguntou por você!',moral:+12,fama:+3,btn:'📋 Escutar'},
+    {icon:'🏖️',titulo:'Folga',corpo:'Fim de semana livre! Corpo e mente descansam.',energia:+18,moral:+5,btn:'🏖️ Aproveitar'},
+    {icon:'🍽️',titulo:'Jantar do Grupo',corpo:'O capitão organizou um jantar! Custa R$500 mas fortalece o grupo.',dinheiro:-500,entrosamento:+15,moral:+8,btn:'🍽️ Ir ao jantar'},
+    {icon:'🧘',titulo:'Retiro Mental',corpo:'Um fim de semana de meditação e foco. Energia e moral disparam.',energia:+25,moral:+12,btn:'🧘 Participar'},
+    {icon:'👶',titulo:'Visita à Escola',corpo:'Você foi a uma escola como referência. A fama cresce!',fama:+4,moral:+6,btn:'🏫 Ir à escola'}
+  ];
+  const ev = pickRandom(evs);
+  showPopup({ icon:ev.icon, titulo:ev.titulo, corpo:ev.corpo, botoes:[
+    {icon:ev.btn.split(' ')[0], text:ev.btn, acao:()=>{
+      if(ev.moral)       G.moral       = Math.max(0,Math.min(100,G.moral+ev.moral));
+      if(ev.energia)     G.energia     = Math.max(0,Math.min(energiaCap(), G.energia + ev.energia));
+      if(ev.fama)        G.fama        = Math.max(0,Math.min(100,G.fama+ev.fama));
+      if(ev.dinheiro)    G.dinheiro    = Math.max(0, G.dinheiro + ev.dinheiro);
+      if(ev.entrosamento)G.entrosamento= Math.max(0,Math.min(100,(G.entrosamento||30)+ev.entrosamento));
+      addNoticia(G,ev.icon,ev.titulo+': '+ev.corpo);
+      closePopup(); passarSemana(true); // true = skip recovery (evento já é o "dia")
+    }}
+  ]});
+}
+
+function gerarEventoPolemicaRedes() {
+  showPopup({
+    icon:'🐦', titulo:'Polêmica nas Redes!',
+    corpo:'Um vídeo mal-editado seu está viralizando. A imprensa está em cima!\n\nComo você responde?',
+    botoes:[
+      { icon:'🙏', text:'Pedir desculpas publicamente', acao:()=>{
+        G.moral = Math.min(100, G.moral+8); G.fama = Math.max(0, G.fama-3);
+        addNoticia(G,'🙏',G.nome+' pediu desculpas e situação se acalmou. Moral ↑');
+        closePopup(); passarSemana(true);
+      }},
+      { icon:'😤', text:'Manter a postura — é mentira!', acao:()=>{
+        G.moral = Math.max(0, G.moral-5); G.fama = Math.min(100, G.fama+6);
+        addNoticia(G,'😤',G.nome+' manteve a postura. A polêmica aumentou a fama.');
+        closePopup(); passarSemana(true);
+      }},
+      { icon:'🤐', text:'Ficar em silêncio', acao:()=>{
+        G.fama = Math.max(0, G.fama-1);
+        addNoticia(G,'🤐',G.nome+' ficou em silêncio sobre a polêmica.');
+        closePopup(); passarSemana(true);
+      }}
+    ]
+  });
+}
+
+// Vida Fora de Campo expandida (acessada pelo card na home)
+function openVidaExpandida() {
+  if (!G) return;
+  const en = G.entrosamento||30;
+  const custo = calcularCustoVidaSemanal();
+  const moradia = getMoradiaAtual();
+  const carro = getCarroAtual();
+  normalizarFamilia();
+  const bodyLines = [
+    'Entrosamento com o grupo: '+en+'/100',
+    'Moradia: '+moradia.nome,
+    'Carro: '+(carro?carro.nome:'nenhum'),
+    'Familia: '+G.familia.estado+' / filhos: '+G.familia.filhos,
+    'Custo semanal: '+fmtMoney(custo.total),
+    '',
+    ...custo.linhas
+  ];
+  showPopup({
+    icon:'VIDA', titulo:'Vida Fora de Campo',
+    corpo: bodyLines.join('\n'),
+    botoes:[
+      { icon:'CASA', text:'Escolher moradia', acao:()=>{ closePopup(); openMoradiaPopup(); }},
+      { icon:'CAR', text:'Comprar carro', acao:()=>{ closePopup(); openCarroPopup(); }},
+      { icon:'FAM', text:'Familia', acao:()=>{ closePopup(); openFamiliaPopup(); }},
+      { icon:'JNT', text:'Jantar do grupo (R$500) +15 entros', acao:()=>{
+        if (bloquearAcaoVidaEmPartida('Jantar do grupo')) return;
+        if(G.dinheiro < 500){ showToast('Sem grana!'); return; }
+        G.dinheiro -= 500; G.entrosamento = Math.min(100,(G.entrosamento||30)+15);
+        G.moral = Math.min(100, G.moral+6);
+        addNoticia(G,'JNT',G.nome+' organizou jantar com o grupo. Entrosamento subiu.');
+        closePopup(); updateTopBar(); passarSemana(true);
+      }},
+      { icon:'$', text:'Verificar investimentos passivos', acao:()=>{ closePopup(); mostrarInvestimentos(); }},
+      { icon:'ZZZ', text:'Descanso em casa +25 energia', acao:()=>{
+        if (bloquearAcaoVidaEmPartida('Descanso em casa')) return;
+        G.energia = Math.min(energiaCap(), G.energia + 25); G.moral = Math.min(100,G.moral+5);
+        addNoticia(G,'ZZZ',G.nome+' descansou em casa.');
+        closePopup(); updateTopBar(); showToast('+25 energia, +5 moral'); passarSemana(true);
+      }}
+    ]
+  });
+}
+function mostrarInvestimentos() {
+  if (!G) return;
+  const inv = G.inventario||{};
+  const renda = [
+    inv['chuteira_pro']   ? '👟 Chuteira Pro: +R$2.000/semana'   : null,
+    inv['academia_vip']   ? '🏋️ Academia VIP: +R$500/semana'     : null,
+    inv['marca_pessoal']  ? '⭐ Marca Pessoal: +R$5.000/semana'  : null,
+  ].filter(Boolean);
+  const total = (inv['chuteira_pro']?2000:0)+(inv['academia_vip']?500:0)+(inv['marca_pessoal']?5000:0);
+  showPopup({
+    icon:'💰', titulo:'Investimentos Passivos',
+    corpo: renda.length
+      ? renda.join('\n')+'\n\nRenda semanal total: R$'+total.toLocaleString('pt-BR')
+      : 'Sem investimentos ativos.\n\nCompre na loja: Academia VIP, Chuteira Pro ou Marca Pessoal para gerar renda passiva.',
+    botoes:[
+      { icon:'🛍️', text:'Ir à Loja', acao:()=>{ closePopup(); navTo('loja'); }},
+      { icon:'✔️', text:'Fechar', acao: closePopup }
+    ]
+  });
+}
+
+function openMoradiaPopup() {
+  if (!G) return;
+  const atual = getMoradiaAtual();
+  showPopup({
+    icon:'CASA', titulo:'Moradia',
+    corpo:'Atual: '+atual.nome+'\nRevenda atual: '+fmtMoney(valorRevendaBem(atual))+'\n\nAo trocar, 55% do valor do bem atual entra como credito.',
+    botoes: MORADIAS.map(m => {
+      const troca = calcularTrocaBem(atual, m);
+      const label = troca.liquido >= 0 ? 'Custo: '+fmtMoney(troca.liquido) : 'Recebe: '+fmtMoney(Math.abs(troca.liquido));
+      return {
+        icon:m.icon,
+        text:(m.id===G.moradia?'Atual: ':'Mudar: ')+m.nome+' ('+label+')',
+        acao:()=>comprarMoradia(m.id)
+      };
+    }).concat([{icon:'VOLTAR', text:'Voltar', acao:()=>{ closePopup(); openVidaExpandida(); }}])
+  });
+}
+
+function comprarMoradia(id) {
+  const item = MORADIAS.find(m => m.id === id);
+  if (!G || !item) return;
+  if (G.moradia === item.id) { showToast('Esta ja e a tua moradia.'); return; }
+  const atual = getMoradiaAtual();
+  const troca = calcularTrocaBem(atual, item);
+  if (troca.liquido > 0 && G.dinheiro < troca.liquido) { showToast('Dinheiro insuficiente!'); return; }
+  G.dinheiro -= troca.liquido;
+  G.moradia = item.id;
+  if (item.famaBonus) G.fama = Math.min(100, G.fama + item.famaBonus);
+  addNoticia(G,item.icon,G.nome+' mudou-se para '+item.nome+'. Trade-in: '+fmtMoney(troca.revenda)+'.');
+  closePopup(); updateTopBar(); saveGame(false); openVidaExpandida();
+}
+
+function openCarroPopup() {
+  if (!G) return;
+  const atual = getCarroAtual();
+  showPopup({
+    icon:'CAR', titulo:'Carro',
+    corpo:'Atual: '+(atual ? atual.nome : 'Sem carro')+'\nRevenda atual: '+fmtMoney(valorRevendaBem(atual))+'\n\nAo trocar, 55% do valor do carro atual entra como credito.',
+    botoes: CARROS.map(c => {
+      const troca = calcularTrocaBem(atual, c);
+      const label = troca.liquido >= 0 ? 'Custo: '+fmtMoney(troca.liquido) : 'Recebe: '+fmtMoney(Math.abs(troca.liquido));
+      return {
+        icon:c.icon,
+        text:(G.carro===c.id?'Atual: ':'Comprar: ')+c.nome+' ('+label+')',
+        acao:()=>comprarCarro(c.id)
+      };
+    }).concat([{icon:'VOLTAR', text:'Voltar', acao:()=>{ closePopup(); openVidaExpandida(); }}])
+  });
+}
+
+function comprarCarro(id) {
+  const item = CARROS.find(c => c.id === id);
+  if (!G || !item) return;
+  if (G.carro === item.id) { showToast('Ja tens este carro.'); return; }
+  const atual = getCarroAtual();
+  const troca = calcularTrocaBem(atual, item);
+  if (troca.liquido > 0 && G.dinheiro < troca.liquido) { showToast('Dinheiro insuficiente!'); return; }
+  G.dinheiro -= troca.liquido;
+  G.carro = item.id;
+  G.fama = Math.min(100, G.fama + (item.famaBonus||0));
+  G.moral = Math.min(100, G.moral + (item.moralBonus||0));
+  addNoticia(G,item.icon,G.nome+' comprou '+item.nome+'. Trade-in: '+fmtMoney(troca.revenda)+'.');
+  closePopup(); updateTopBar(); saveGame(false); openVidaExpandida();
+}
+
+function openFamiliaPopup() {
+  if (!G) return;
+  normalizarFamilia();
+  const f = G.familia;
+  showPopup({
+    icon:'👨‍👩‍👧', titulo:'Familia',
+    corpo:'Estado: '+f.estado+'\nFilhos: '+f.filhos+'\n\nFamilia custa por semana, mas protege a moral.',
+    botoes:[
+      {icon:'💕', text:'Namorar (-R$2.000)', acao:()=>mudarFamilia('namoro')},
+      {icon:'💍', text:'Casar (-R$15.000)', acao:()=>mudarFamilia('casado')},
+      {icon:'👶', text:'Ter filho (-R$10.000)', acao:()=>adicionarFilho()},
+      {icon:'↩️', text:'Voltar', acao:()=>{ closePopup(); openVidaExpandida(); }}
+    ]
+  });
+}
+
+function mudarFamilia(estado) {
+  if (!G) return;
+  normalizarFamilia();
+  const custo = estado === 'casado' ? 15000 : 2000;
+  if (G.familia.estado === estado) { showToast('✅ Estado familiar ja ativo.'); return; }
+  if (estado === 'casado' && G.familia.estado === 'solteiro') { showToast('💕 Primeiro começa um relacionamento.'); return; }
+  if (G.dinheiro < custo) { showToast('💸 Dinheiro insuficiente!'); return; }
+  G.dinheiro -= custo;
+  G.familia.estado = estado;
+  normalizarFamilia();
+  G.moral = Math.min(100, G.moral + (estado === 'casado' ? 8 : 4));
+  addNoticia(G, estado === 'casado' ? '💍' : '💕', G.nome+' atualizou sua vida familiar: '+estado+'.');
+  closePopup(); updateTopBar(); saveGame(false); openFamiliaPopup();
+}
+
+function adicionarFilho() {
+  if (!G) return;
+  normalizarFamilia();
+  if (G.familia.estado !== 'casado') { showToast('💍 Precisa estar casado.'); return; }
+  if (G.familia.filhos >= 3) { showToast('👶 Limite de filhos atingido.'); return; }
+  if (G.dinheiro < 10000) { showToast('💸 Dinheiro insuficiente!'); return; }
+  G.dinheiro -= 10000;
+  G.familia.filhos++;
+  normalizarFamilia();
+  G.moral = Math.min(100, G.moral + 10);
+  addNoticia(G,'👶',G.nome+' teve um filho. A vida fora de campo mudou.');
+  closePopup(); updateTopBar(); saveGame(false); openFamiliaPopup();
+}
+
+const PATROCINIOS_MIDIA = [
+  { id:'local', icon:'LOC', nome:'Marca Local', famaReq:10, bonusSemana:750, premio:2500, moral:1, desc:'Apoio regional. Pouco dinheiro, boa estabilidade.' },
+  { id:'sportswear', icon:'KIT', nome:'Material Esportivo', famaReq:25, bonusSemana:1800, premio:7000, moral:2, desc:'Contrato de chuteiras e aparicoes em campanhas.' },
+  { id:'bebida', icon:'DRK', nome:'Bebida Energetica', famaReq:45, bonusSemana:3500, premio:15000, energia:2, desc:'Boa grana e bonus leve de energia semanal.' },
+  { id:'global', icon:'GLB', nome:'Campanha Global', famaReq:70, bonusSemana:8000, premio:40000, fama:2, desc:'Marca internacional. Muito dinheiro e exposicao.' },
+];
+
+const ENTREVISTAS_MIDIA = [
+  { id:'pos_jogo', famaReq:0, titulo:'Entrevista Pos-Jogo', corpo:'A imprensa pergunta sobre o desempenho recente.', escolhas:[
+    {icon:'HUM', text:'Humilde: valorizar o grupo', fama:+2, moral:+4, entrosamento:+5, seguidores:700},
+    {icon:'AMB', text:'Ambicioso: prometer mais', fama:+5, moral:+1, entrosamento:-2, seguidores:1300},
+    {icon:'FOC', text:'Reservado: foco no trabalho', fama:+1, moral:+2, seguidores:300}
+  ]},
+  { id:'rumor', famaReq:20, titulo:'Coletiva sobre rumores', corpo:'Jornalistas perguntam se voce quer sair do clube.', escolhas:[
+    {icon:'CLB', text:'Blindar o clube atual', fama:+1, moral:+4, entrosamento:+4, seguidores:500},
+    {icon:'MKT', text:'Deixar o mercado aberto', fama:+5, moral:+1, entrosamento:-5, seguidores:1600},
+    {icon:'SIL', text:'Nao comentar', fama:0, moral:+1, seguidores:250}
+  ]},
+  { id:'estrela', famaReq:45, titulo:'Programa Esportivo', corpo:'Um programa nacional quer falar sobre sua carreira.', escolhas:[
+    {icon:'CAR', text:'Carismatico e leve', fama:+6, moral:+3, seguidores:2200},
+    {icon:'POL', text:'Politico e cuidadoso', fama:+3, entrosamento:+2, seguidores:900},
+    {icon:'OUS', text:'Frase forte para viralizar', fama:+8, moral:-3, entrosamento:-4, seguidores:3200}
+  ]}
+];
+
+function normalizarMidia() {
+  if (!G.midia || typeof G.midia !== 'object') G.midia = { seguidores:0, entrevistas:0, patrocinios:[], redesEventos:[] };
+  if (!Array.isArray(G.midia.patrocinios)) G.midia.patrocinios = [];
+  if (!Array.isArray(G.midia.redesEventos)) G.midia.redesEventos = [];
+  G.midia.seguidores = Math.max(0, Math.round(Number(G.midia.seguidores)||0));
+  G.midia.entrevistas = Math.max(0, Math.round(Number(G.midia.entrevistas)||0));
+  G.midia.ultimaAcaoSemana = G.midia.ultimaAcaoSemana || null;
+}
+
+function midiaManualBloqueada() {
+  normalizarMidia();
+  const semanaKey = G.ano+'-'+G.semanaAtual;
+  if (G.midia.ultimaAcaoSemana !== semanaKey) return false;
+  showToast('Acoes de midia manuais: limite de 1 por semana.');
+  return true;
+}
+
+function aplicarRendaPatrociniosSemanal() {
+  if (!G) return 0;
+  normalizarMidia();
+  let total = 0;
+  G.midia.patrocinios.forEach(id => {
+    const p = PATROCINIOS_MIDIA.find(x => x.id === id);
+    if (!p) return;
+    total += p.bonusSemana || 0;
+    if (p.moral) G.moral = Math.min(100, G.moral + p.moral);
+    if (p.energia) G.energia = Math.min(energiaCap(), G.energia + p.energia);
+    if (p.fama) G.fama = Math.min(100, G.fama + p.fama);
+  });
+  if (total > 0) G.dinheiro += total;
+  return total;
+}
+
+function aplicarEscolhaMidia(ev, ch, avancar = true) {
+  if (!G) return;
+  normalizarMidia();
+  const semanaKey = G.ano+'-'+G.semanaAtual;
+  if (!avancar && G.midia.ultimaAcaoSemana === semanaKey) {
+    showToast('Acoes de midia manuais: limite de 1 por semana.');
+    return;
+  }
+  if (ch.dinheiro && G.dinheiro + ch.dinheiro < 0) {
+    showToast('Dinheiro insuficiente para esta acao.');
+    return;
+  }
+  if (ch.fama) G.fama = Math.max(0, Math.min(100, G.fama + ch.fama));
+  if (ch.moral) G.moral = Math.max(0, Math.min(100, G.moral + ch.moral));
+  if (ch.entrosamento) G.entrosamento = Math.max(0, Math.min(100, (G.entrosamento||30) + ch.entrosamento));
+  if (ch.dinheiro) G.dinheiro += ch.dinheiro;
+  if (ch.energia) G.energia = Math.min(energiaCap(), G.energia + ch.energia);
+  if (ch.seguidores) G.midia.seguidores += ch.seguidores;
+  G.midia.entrevistas++;
+  if (!avancar) G.midia.ultimaAcaoSemana = semanaKey;
+  addNoticia(G, ev.icon||'MID', ev.titulo+': '+ch.text);
+  closePopup(); updateTopBar(); renderMidiaScreen(); saveGame(false);
+  if (avancar) passarSemana(true);
+}
+
+function abrirEntrevistaMidia(avancar = false) {
+  if (!G) return;
+  normalizarMidia();
+  if (!avancar && midiaManualBloqueada()) return;
+  const pool = ENTREVISTAS_MIDIA.filter(e => (G.fama||0) >= (e.famaReq||0));
+  const ev = pickRandom(pool.length ? pool : ENTREVISTAS_MIDIA);
+  showPopup({
+    icon:'MID', titulo:ev.titulo, corpo:ev.corpo,
+    botoes: ev.escolhas.map(ch => ({ icon:ch.icon, text:ch.text, acao:()=>aplicarEscolhaMidia(ev, ch, avancar) }))
+  });
+}
+
+function gerarEventoRedeSocial(avancar = true) {
+  if (!G) return;
+  normalizarMidia();
+  if (!avancar && midiaManualBloqueada()) return;
+  const evs = [
+    { icon:'VIR', titulo:'Clipe Viral', corpo:'Um lance seu viralizou nas redes.', escolhas:[
+      {icon:'COM', text:'Comentar e surfar a onda', fama:+5, moral:+1, seguidores:1800},
+      {icon:'EQU', text:'Marcar companheiros', fama:+2, entrosamento:+4, seguidores:900},
+      {icon:'IGN', text:'Ignorar', fama:+1, moral:+1, seguidores:300}
+    ]},
+    { icon:'POL', titulo:'Polemica Online', corpo:'Um comentario fora de contexto gerou discussao.', escolhas:[
+      {icon:'PDS', text:'Pedir desculpas', fama:-2, moral:+3, entrosamento:+2, seguidores:200},
+      {icon:'DEF', text:'Defender sua versao', fama:+3, moral:-3, seguidores:1200},
+      {icon:'SIL', text:'Silencio total', fama:-1, moral:+1, seguidores:0}
+    ]},
+    { icon:'FAN', titulo:'Campanha dos Fas', corpo:'Torcedores puxaram uma hashtag com seu nome.', escolhas:[
+      {icon:'AGR', text:'Agradecer publicamente', fama:+3, moral:+3, seguidores:1000},
+      {icon:'SOR', text:'Sortear camisa', fama:+4, dinheiro:-1200, seguidores:1700},
+      {icon:'FOC', text:'Responder depois do jogo', fama:+1, moral:+1, seguidores:400}
+    ]}
+  ];
+  const ev = pickRandom(evs);
+  G.midia.redesEventos.push({ ano:G.ano, semana:G.semanaAtual, titulo:ev.titulo });
+  G.midia.redesEventos = G.midia.redesEventos.slice(-8);
+  showPopup({
+    icon:ev.icon, titulo:ev.titulo, corpo:ev.corpo,
+    botoes: ev.escolhas.map(ch => ({ icon:ch.icon, text:ch.text, acao:()=>aplicarEscolhaMidia(ev, ch, avancar) }))
+  });
+}

@@ -1,0 +1,593 @@
+
+function resetBallToCenter() {
+  if (!MS) return;
+  MS.bx = 0.50; MS.by = 0.50; // snap p/ centro
+  // Após gol: portador inicial é meia central (idx 6) do time que sofreu
+  const loser = MS.carrier.team==='A'?'B':'A';
+  MS.carrier = { team:loser, idx:6 };
+  MS.passTimer = 220;
+  MS._ballSnap = 0; // bola já está no centro, sem snap
+}
+
+function triggerGolEffect(isMyGoal) { if (MS) MS.golFx = { t:0, isMyGoal }; }
+function mediaAtrs() { const v=Object.values(G.attrs); return v.length?v.reduce((a,b)=>a+b,0)/v.length:50; }
+
+// ─── MENU ELENCO ──────────────────────────────────────────────
+function openLineupMenu() {
+  if (!MS) return;
+  document.getElementById('lineup-panel').style.display = 'flex';
+  // Auto-pause
+  if (MS.running && !MS.paused) togglePause();
+  renderLineupContent(MS.lpTab||'home');
+}
+function closeLineupMenu() {
+  document.getElementById('lineup-panel').style.display = 'none';
+  if (MS && MS._halfTimeDone && MS.paused && !MS._intervaloResolvido && !MS.done) {
+    setTimeout(abrirIntervaloPartida, 100);
+  }
+}
+function lpTab(tab) {
+  if (!MS) return;
+  MS.lpTab = tab;
+  document.querySelectorAll('.lp-tab').forEach(el => {
+    el.classList.toggle('active', el.textContent.toLowerCase().includes(
+      tab==='home'?'mandante':tab==='away'?'visitante':'substit'
+    ));
+  });
+  renderLineupContent(tab);
+}
+
+function subIntervaloNpc(side, num) {
+  if (!MS || !MS._halfTimeDone || MS.done || G.perfil !== 'treinador') return;
+  const squad = side === 'home' ? MS.squadA : MS.squadB;
+  const usedKey = side === 'home' ? 'subsUsedA' : 'subsUsedB';
+  if (MS[usedKey] >= MS.subLimit) { showToast('Limite de substituicoes atingido.'); return; }
+  const out = squad.find(p => p.num === num && p.inGame && !p.isPlayer);
+  const reservas = squad.filter(p => !p.inGame && !p.subbedOut && !p.isPlayer);
+  if (!out || !reservas.length) { showToast('Sem substituicao disponivel.'); return; }
+  MS.pendingSub = { side, outNum:num };
+  renderLineupContent(MS.lpTab || side);
+}
+
+function cancelarSubIntervaloNpc() {
+  if (!MS) return;
+  const side = MS.pendingSub?.side || MS.lpTab || 'home';
+  MS.pendingSub = null;
+  renderLineupContent(side);
+}
+
+function confirmarSubIntervaloNpc(side, outNum, inNum) {
+  if (!MS || !MS._halfTimeDone || MS.done || G.perfil !== 'treinador') return;
+  const squad = side === 'home' ? MS.squadA : MS.squadB;
+  const usedKey = side === 'home' ? 'subsUsedA' : 'subsUsedB';
+  if (MS[usedKey] >= MS.subLimit) { showToast('Limite de substituicoes atingido.'); cancelarSubIntervaloNpc(); return; }
+  const out = squad.find(p => p.num === outNum && p.inGame && !p.isPlayer);
+  const sub = squad.find(p => p.num === inNum && !p.inGame && !p.subbedOut && !p.isPlayer);
+  if (!out || !sub) { showToast('Escolha de substituicao invalida.'); cancelarSubIntervaloNpc(); return; }
+  out.inGame = false; out.subbedOut = true;
+  sub.inGame = true; sub.energia = Math.min(100, sub.energia + 8);
+  MS[usedKey]++;
+  MS.pendingSub = null;
+  addNpcRating(side === 'home' ? 'teamA' : 'teamB', sub.num, 0.15);
+  logMatch('Substituicao no intervalo: camisa '+out.num+' sai, camisa '+sub.num+' entra.', 'hl');
+  renderLineupContent(MS.lpTab || side);
+}
+
+function renderLineupContent(tab) {
+  const content = document.getElementById('lp-content');
+  if (!content || !MS) return;
+  tab = tab || 'home';
+
+  if (tab === 'subs') {
+    const subsA = MS.subsUsedA, subsB = MS.subsUsedB, lim = MS.subLimit;
+    let html = '<div class="lp-sub-info">🟢 '+MS.home+': '+subsA+'/'+lim+' subs  |  🔴 '+MS.away+': '+subsB+'/'+lim+' subs</div>';
+    const bench = [...MS.squadA.filter(p=>!p.inGame), ...MS.squadB.filter(p=>!p.inGame)];
+    if (!bench.length) { html += '<div class="lp-sub-info">Nenhum reserva disponível.</div>'; }
+    bench.forEach(p => {
+      const e = Math.round(p.energia);
+      const bc = e>50?'var(--green)':e>25?'var(--gold)':'var(--red)';
+      html += '<div class="lp-player'+(p.isPlayer?' is-player':'')+'">'+
+        '<div class="lp-num">'+p.num+'</div>'+
+        '<div class="lp-info"><div class="lp-name">'+(p.isPlayer?'⭐ ':'')+p.name+'</div>'+
+        '<div class="lp-pos">'+p.pos+' | EN: '+e+'</div>'+
+        '<div class="lp-enbar"><div class="lp-enfill" style="width:'+e+'%;background:'+bc+'"></div></div></div>'+
+        '<div class="lp-ovr">'+p.ovr+'</div></div>';
+    });
+    content.innerHTML = html;
+    return;
+  }
+
+  const squad    = tab==='home' ? MS.squadA : MS.squadB;
+  const subsUsed = tab==='home' ? MS.subsUsedA : MS.subsUsedB;
+  const lim      = MS.subLimit;
+  let html = '<div class="lp-sub-info">Substituições usadas: '+subsUsed+'/'+lim+'</div>';
+  const pending = MS.pendingSub && MS.pendingSub.side === tab ? MS.pendingSub : null;
+  if (pending) {
+    const outP = squad.find(p => p.num === pending.outNum);
+    const reservas = squad.filter(p => !p.inGame && !p.subbedOut && !p.isPlayer);
+    html += '<div class="lp-sub-info">Sai: camisa '+(outP?outP.num:'?')+' '+(outP?outP.name:'')+'. Escolha quem entra:</div>';
+    if (!reservas.length) html += '<div class="lp-sub-info">Nenhum reserva disponivel.</div>';
+    reservas.forEach(r => {
+      html += '<div class="lp-player">'+
+        '<div class="lp-num">'+r.num+'</div>'+
+        '<div class="lp-info"><div class="lp-name">'+r.name+'</div>'+
+        '<div class="lp-pos">'+r.pos+' | EN: '+Math.round(r.energia)+'</div></div>'+
+        '<div class="lp-ovr">'+r.ovr+'</div>'+
+        '<button class="talent-btn" onclick="confirmarSubIntervaloNpc(&quot;'+tab+'&quot;,'+pending.outNum+','+r.num+')">Entra</button>'+
+        '</div>';
+    });
+    html += '<button class="talent-btn" onclick="cancelarSubIntervaloNpc()">Cancelar</button>';
+  }
+  squad.filter(p=>p.inGame || p.subbedOut).forEach(p => {
+    const e   = Math.round(p.energia);
+    const bc  = e>50?'var(--green)':e>25?'var(--gold)':'var(--red)';
+    const warn = e<=25 && p.inGame ? '⚠️ ' : '';
+    html += '<div class="lp-player'+(p.isPlayer?' is-player':'')+(p.subbedOut?' subbed-out':'')+(pending && pending.outNum===p.num?' is-player':'')+'">'+
+      '<div class="lp-num">'+p.num+'</div>'+
+      '<div class="lp-info">'+
+      '<div class="lp-name">'+(p.isPlayer?'⭐ ':'')+p.name+(p.subbedOut?' 🔄':'')+'</div>'+
+      '<div class="lp-pos">'+warn+p.pos+(p.inGame?' | EN: '+e:'')+'</div>'+
+      (p.inGame?'<div class="lp-enbar"><div class="lp-enfill" style="width:'+e+'%;background:'+bc+'"></div></div>':'')+
+      '</div><div class="lp-ovr">'+p.ovr+'</div>'+
+      (G.perfil==='treinador' && MS._halfTimeDone && MS.paused && p.inGame && !p.isPlayer && subsUsed < lim && !pending
+        ? '<button class="talent-btn" onclick="subIntervaloNpc(&quot;'+tab+'&quot;,'+p.num+')">Sub</button>'
+        : '')+
+      '</div>';
+  });
+  content.innerHTML = html;
+}
+
+// ─── RENDER DO CAMPO ──────────────────────────────────────────
+function drawPitch() {
+  // Campo grafico removido: a partida agora usa momentos narrativos.
+}
+
+function pedirCamisa() {
+  if (!G) return;
+  showPopup({
+    icon:'👕', titulo:'Pedir Número de Camisa',
+    corpo:'Qual número você quer usar?\n\n(O clube pode aceitar ou recusar conforme disponibilidade)\n\nCamisa atual: '+( G.camisa||10),
+    botoes:[
+      {icon:'🔟', text:'Camisa 10',  acao:()=>processarPedidoCamisa(10)},
+      {icon:'9️⃣', text:'Camisa 9',   acao:()=>processarPedidoCamisa(9)},
+      {icon:'7️⃣', text:'Camisa 7',   acao:()=>processarPedidoCamisa(7)},
+      {icon:'✏️', text:'Outro número',acao:()=>{ closePopup(); pedirCamisaCustom(); }},
+    ]
+  });
+}
+
+function pedirCamisaCustom() {
+  const num = parseInt(prompt('Digite o número da camisa (1-99):'), 10);
+  if (!num || num<1||num>99) { showToast('❌ Número inválido.'); return; }
+  processarPedidoCamisa(num);
+}
+
+function processarPedidoCamisa(num) {
+  closePopup();
+  if (!G) return;
+  G.camisaPedida = num;
+  // 70% de chance de conseguir se for número acima de 20
+  // 50% se for cobiçado (7,9,10,11)
+  const cobiçado = [7,9,10,11].includes(num);
+  const chance = cobiçado ? 0.50 : 0.75;
+  if (Math.random() < chance) {
+    G.camisa = num;
+    showToast('✅ O clube aceitou! Você agora usa a camisa '+num+'!');
+    addNoticia(G,'👕',G.nome+' passa a usar a camisa '+num+' no '+G.clube+'.');
+  } else {
+    showToast('❌ O clube recusou. A camisa '+num+' não está disponível.');
+    addNoticia(G,'👕',G.nome+' pediu a camisa '+num+', mas o clube recusou.');
+  }
+  saveGame(false);
+  populateProfileScreen();
+}
+
+// ─── TRAINING ────────────────────────────────────────────────
+
+function populateAttrsGrid() {
+  if (!G) return;
+  const grid = document.getElementById('attrs-grid');
+  const isTre = G.perfil === 'treinador';
+
+  if (isTre) {
+    normalizarElencoClube(false);
+    normalizarLicencaTreinador();
+    const lic = LICENCAS_TREINADOR[G.licencaTreinador.nivel] || LICENCAS_TREINADOR.C;
+    const curso = G.licencaTreinador.cursoAtivo;
+    const elenco = G.elencoClube || [];
+    const mediaOvr = Math.round(mediaElenco('ovr'));
+    const mediaMor = Math.round(mediaElenco('moral'));
+    const mediaEn = Math.round(mediaElenco('energia'));
+    grid.innerHTML =
+      `<div class="attr-card" style="grid-column:1/-1" onclick="pedirCursoLicenca()">
+        <div class="attr-name">LIC ${lic.nome}</div>
+        <div class="attr-val">OVR ${G.ovr}<span></span></div>
+        <div style="font-size:11px;color:var(--text2);margin-top:6px">${curso ? 'Curso: '+curso.alvo+' | faltam '+curso.semanasRestantes+' semanas' : (lic.prox ? 'Clique para pedir curso da proxima licenca' : 'Licenca maxima')}</div>
+      </div>
+      <div class="attr-card" style="grid-column:1/-1">
+        <div class="attr-name">ELC Elenco</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:6px">${elenco.length} jogadores | OVR medio ${mediaOvr} | Moral ${mediaMor} | Energia ${mediaEn}</div>
+      </div>`+
+      TREINOS_COLETIVOS.map(t => `<div class="attr-card" onclick="treinoColetivo('${t.id}')">
+        <div class="attr-name">${t.icon} ${t.nome}</div>
+        <div class="attr-val">1-6<span></span></div>
+        <div style="font-size:11px;color:var(--text2);margin-top:6px">${t.desc}</div>
+      </div>`).join('');
+    return;
+  }
+
+  const isGOL = G.grupoPos === 'GOL';
+  const statList = isGOL ? STATS_GOLEIRO : STATS_JOGADOR;
+  const prio = STAT_PRIO[G.grupoPos] || STAT_PRIO.ATA;
+  const sorted = [...statList].sort((a,b) => {
+    const ia = prio.indexOf(a.key); const ib = prio.indexOf(b.key);
+    return (ia===-1?99:ia) - (ib===-1?99:ib);
+  });
+
+  grid.innerHTML = sorted.map(a => {
+    const val = G.attrs[a.key] || 0;
+    const bc = val>=75?'bfg':val>=55?'bfgold':'bfr';
+    return `<div class="attr-card" onclick="trainAttr('${a.key}','${a.label}')">
+      <div class="attr-name">${a.icon} ${a.label}</div>
+      <div class="attr-val">${val}<span>/100</span></div>
+      <div class="bar-track"><div class="bar-fill ${bc}" style="width:${val}%"></div></div>
+    </div>`;
+  }).join('');
+
+  renderSkillsSection();
+}
+
+function renderSkillsSection() {
+  const el = document.getElementById('skills-section');
+  if (!el || !G) return;
+  const arqs = getArquetipoPorGrupo(G.grupoPos);
+  const arqAtual = arqs.find(a => a.key === G.arquetipo);
+  if (!arqAtual) { el.innerHTML = ''; return; }
+
+  if ((G.ovr||0) < 60) {
+    el.innerHTML = `<div style="background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;color:var(--text2);font-size:13px;">🔒 Skills desbloqueiam com OVR 60+ (atual: ${G.ovr||0})</div>`;
+    return;
+  }
+
+  const talentosDisponiveis = arqAtual.talentos || [];
+  const desbloqueados = G.talentos || [];
+  const pts = G.pontosArquetipo || 0;
+
+  const itens = talentosDisponiveis.map(t => {
+    const tem = desbloqueados.includes(t.key);
+    const podeComprar = !tem && pts >= t.custo;
+    return `<div style="background:var(--bg3);border:1.5px solid ${tem?'var(--green)':'var(--border)'};border-radius:10px;padding:10px 12px;margin-bottom:7px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <span style="font-weight:700;font-size:13px">${t.nome}</span>
+        ${tem ? '<span style="color:var(--green);font-size:12px">✅ Ativo</span>'
+              : `<button onclick="comprarTalento('${t.key}')" style="background:${podeComprar?'var(--green)':'var(--border)'};color:${podeComprar?'#000':'var(--text2)'};border:none;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;cursor:${podeComprar?'pointer':'not-allowed'}">${t.custo}pt</button>`}
+      </div>
+      <div style="font-size:11.5px;color:var(--text2)">${t.efeito}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div style="background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:12px 14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-weight:700;font-size:13px">🎯 Skills — ${arqAtual.nome}</span>
+      <span style="background:var(--gold);color:#000;border-radius:6px;padding:3px 9px;font-size:12px;font-weight:700">${pts} pts</span>
+    </div>
+    ${itens}
+    <div style="font-size:10.5px;color:var(--text2);margin-top:4px">Pontos ganhos: +1 a cada 5 OVR acima de 60.</div>
+  </div>`;
+}
+
+function comprarTalento(key) {
+  if (!G) return;
+  const arqs = getArquetipoPorGrupo(G.grupoPos);
+  const arqAtual = arqs.find(a => a.key === G.arquetipo);
+  const t = arqAtual?.talentos?.find(t => t.key === key);
+  if (!t) return;
+  if ((G.talentos||[]).includes(key)) { showToast('✅ Já tens esta skill!'); return; }
+  if ((G.pontosArquetipo||0) < t.custo) { showToast('⚠️ Pontos insuficientes!'); return; }
+  G.talentos = [...(G.talentos||[]), key];
+  G.pontosArquetipo = (G.pontosArquetipo||0) - t.custo;
+  // Aplicar bónus de atributo
+  Object.entries(t.attrBonus||{}).forEach(([attr, val]) => {
+    addAttrBonus(attr, val);
+  });
+  G.ovr = calculateOverall(G);
+  saveGame(false); updateTopBar();
+  renderSkillsSection();
+  showToast('🎯 Skill desbloqueada: '+t.nome+'!');
+}
+
+function updateEnergiaBar() {
+  if (!G) return;
+  const v = G.energia;
+  document.getElementById('energia-txt').textContent = `${v}/${energiaCap()}`;
+  document.getElementById('energia-bar').style.width = v+'%';
+  document.getElementById('energia-bar').className = `bar-fill ${v>50?'bfg':v>25?'bfgold':'bfr'}`;
+  updateTreinoStatus();
+}
+
+function updateTreinoStatus() {
+  const el = document.getElementById('treino-status');
+  if (!el || !G) return;
+
+  const treinos  = G.treinoHoje  || 0;
+  const enHoje   = G.energeticoHoje   || 0;
+  const enSemana = G.energeticoSemana || 0;
+  const semAtual = G.calendario ? G.calendario.find(c => c.semana === G.semanaAtual) : null;
+  const ehJogo   = semAtual && semAtual.tipo === 'partida';
+
+  // Calcular recuperação prevista ao fim do dia
+  if (G.perfil === 'treinador') {
+    normalizarElencoClube(false);
+    normalizarLicencaTreinador();
+    const curso = G.licencaTreinador.cursoAtivo;
+    const tClsTre = treinos >= 3 ? 'tsc-block' : treinos >= 2 ? 'tsc-warn' : '';
+    el.innerHTML = `
+      <div class="tsc-item">
+        <div class="tsc-icon">TRN</div>
+        <div class="tsc-val ${tClsTre}">${treinos}/3</div>
+        <div class="tsc-lbl">Treinos hoje</div>
+      </div>
+      <div class="tsc-item">
+        <div class="tsc-icon">LIC</div>
+        <div class="tsc-val">${G.licencaTreinador.nivel}</div>
+        <div class="tsc-lbl">Licenca</div>
+      </div>
+      <div class="tsc-item">
+        <div class="tsc-icon">ELC</div>
+        <div class="tsc-val">${G.elencoClube.length}</div>
+        <div class="tsc-lbl">Elenco</div>
+      </div>
+      <div class="tsc-item" style="flex:2">
+        <div class="tsc-icon">${curso ? 'CUR' : 'DIR'}</div>
+        <div class="tsc-rec">${curso ? 'Curso '+curso.alvo+': '+curso.semanasRestantes+' semana(s)' : 'Diretoria '+Math.round(G.clubeStatus?.apoioDiretoria||55)+'/100'}</div>
+      </div>`;
+    return;
+  }
+
+  const TABELA = [0.25, 0.20, 0.15, 0.10];
+  const pctBase  = ehJogo ? 0 : TABELA[Math.min(treinos, 3)];
+  const pctBonus = ehJogo ? 0 : Math.min(enHoje, 2) * 0.05;
+  const recPrev  = Math.round((pctBase + pctBonus) * 100);
+
+  // Cor do contador de treinos
+  const tCls = treinos >= 3 ? 'tsc-block' : treinos >= 2 ? 'tsc-warn' : '';
+
+  // Status energético
+  const eCls = enHoje >= 2 ? 'tsc-block' : enHoje >= 1 ? 'tsc-warn' : '';
+
+  el.innerHTML = `
+    <div class="tsc-item">
+      <div class="tsc-icon">💪</div>
+      <div class="tsc-val ${tCls}">${treinos}/3</div>
+      <div class="tsc-lbl">Treinos hoje</div>
+    </div>
+    <div class="tsc-item">
+      <div class="tsc-icon">⚡</div>
+      <div class="tsc-val ${eCls}">${enHoje}/2</div>
+      <div class="tsc-lbl">Energ. hoje</div>
+    </div>
+    <div class="tsc-item">
+      <div class="tsc-icon">📅</div>
+      <div class="tsc-val">${enSemana}/3</div>
+      <div class="tsc-lbl">Energ. semana</div>
+    </div>
+    <div class="tsc-item" style="flex:2">
+      <div class="tsc-icon">${ehJogo ? '⚽' : '🌙'}</div>
+      <div class="tsc-rec">${ehJogo ? 'Dia de jogo — sem recuperação' : `Recuperação ao avançar: +${recPrev} energia`}</div>
+    </div>`;
+}
+
+function trainAttr(key, label) {
+  if (!G) return;
+  if (G.perfil === 'treinador') {
+    treinoColetivo(key);
+    return;
+  }
+
+  // Limite: 3 treinos por dia
+  const treinosHoje = G.treinoHoje || 0;
+  if (treinosHoje >= 3) {
+    showPopup({
+      icon: '🚫', titulo: 'Limite diário atingido!',
+      corpo: 'Você já treinou 3 vezes hoje.\nAvance para o próximo dia para continuar.\n\n💡 Dia de jogo não conta treinos — descanse bem!',
+      botoes: [{ icon: '😴', text: 'Entendido', acao: closePopup }]
+    });
+    return;
+  }
+
+  // Checar energia mínima
+  if (G.energia < 10) {
+    showPopup({
+      icon: '🔋', titulo: 'Sem energia!',
+      corpo: `Energia: ${G.energia}/${energiaCap()}\nVocê precisa de pelo menos 10 de energia.\n\n💡 Use um energético (⚡ Estoque) ou avance o dia para recuperar.`,
+      botoes: [
+        { icon: '⚡', text: 'Usar Energético', acao: () => { closePopup(); abrirEstoqueRapido(); } },
+        { icon: '❌', text: 'Fechar', acao: closePopup }
+      ]
+    });
+    return;
+  }
+
+  // Verificar se está lesionado
+  if (G.emLesao) {
+    showToast('🩹 Você está lesionado! ('+(G.lesaoTipo||'lesão')+') — '+G.semanasLesao+' semanas para recuperar.');
+    return;
+  }
+
+  // Custo FIXO por grupo de atributo — sem save-scumming
+  // Físicos custam mais (corpo mais exigido), mentais custam menos
+  const _attrDef = STATS_JOGADOR?.find?.(a => a.key === key)
+                || STATS_GOLEIRO?.find?.(a => a.key === key);
+  const _grupo   = _attrDef?.group || 'TEC';
+  const _custos  = { FIS:17, ATK:15, TEC:13, DEF:13, GK:14, MEN:10 };
+  const custo    = _custos[_grupo] || 14;
+  const atual = G.attrs[key] || 0;
+  // Auge: 24-29 anos = bônus dobrado. Declínio: 32+ = base 0
+  const isAuge   = G.idade >= 24 && G.idade <= 29;
+  const isDeclínio = G.idade >= 32;
+  // MEN (mentais) não sofrem declínio — manter base >=1
+  const isMental  = _grupo === 'MEN';
+  const baseRaw   = G.idade <= 18 ? 3
+                  : G.idade <= 23 ? 2
+                  : isDeclínio ? (isMental ? 1 : 0)
+                  : 1;
+  const baseMult = isAuge ? 2 : 1;
+  const base     = baseRaw * baseMult;
+  G.auge = isAuge; // atualizar flag
+  // No declínio, atributos físicos caem automaticamente (1 por temporada via fimDeTemporada)
+  const gain  = Math.max(0, rng(base, base + 3) - Math.floor(atual / 25));
+  // Campo de Treinamento: +1 extra por sessão
+  const campoBonus = (G.inventario||{})['campo_treino'] ? 1 : 0;
+
+  // Chance de lesão por treino intenso com energia baixa
+  if (G.energia < 25 && Math.random() < 0.12) {
+    aplicarLesao('treino');
+    return;
+  }
+
+  G.energia = Math.max(0, G.energia - custo);
+  G.attrs[key] = Math.min(99, atual + gain + campoBonus);
+  G.treinoHoje = treinosHoje + 1;
+  if (gain > 0) G.moral = Math.min(100, G.moral + 2);
+
+  refreshOVR();
+
+  // Pontos de talento: +1 a cada 5 OVR acima de 60
+  if (G.ovr >= 60) {
+    const ptsDevidos = Math.floor((G.ovr - 60) / 5);
+    const gastos = (G.talentos||[]).reduce((s,k) => {
+      const _a = getArquetipoPorGrupo(G.grupoPos).find(a=>a.key===G.arquetipo);
+      return s + (_a?.talentos?.find(t=>t.key===k)?.custo||0);
+    }, 0);
+    G.pontosArquetipo = Math.max(G.pontosArquetipo||0, ptsDevidos - gastos);
+  }
+
+  updateTopBar(); updateEnergiaBar(); populateAttrsGrid(); saveGame(false);
+
+  // Feedback do treino com contador do dia
+  const treinosRestantes = 3 - G.treinoHoje;
+  const pctAmanha = [20, 15, 10][Math.min(G.treinoHoje, 3) - 1] || 10;
+  const augeInfo  = G.auge ? '\n⚡ PERÍODO DE AUGE! Treinos rendem o dobro!' : (G.idade>=32?'\n📉 Declínio físico — foque em atributos mentais.':'');
+  const extraInfo = `\n\n💪 Treinos hoje: ${G.treinoHoje}/3 | Restam ${treinosRestantes}\n🌙 Recuperação amanhã: ~${pctAmanha}%${augeInfo}`;
+
+  showPopup({
+    icon: gain > 0 ? '📈' : '😓',
+    titulo: gain > 0 ? 'Evolução!' : 'Sem evolução',
+    corpo: gain > 0
+      ? `${label} melhorou!\n${atual} → ${G.attrs[key]} (+${gain})\nOVR: ${G.ovr}${extraInfo}`
+      : `Treino duro mas ${label} não evoluiu agora.${extraInfo}`,
+    botoes: [{ icon: '✔️', text: 'Fechar', acao: closePopup }]
+  });
+}
+
+// ─── PROFILE ─────────────────────────────────────────────────
+
+function populateProfileScreen() {
+  if (!G) return;
+  const nac = NACIONALIDADES.find(n=>n.key===G.nacionalidade) || NACIONALIDADES[0];
+
+  document.getElementById('profile-name').textContent  = G.nome;
+  document.getElementById('profile-club').textContent  = `${G.clube} · ${G.liga}`;
+  document.getElementById('profile-avatar').textContent = G.perfil==='treinador'?'🧢':'⚽';
+  document.getElementById('top-avatar').textContent     = G.perfil==='treinador'?'🧢':'⚽';
+
+  // Badges
+  const badges=[];
+  const agenteInfo = AGENTES[G.tipoAgente||'nenhum'];
+  if(G.tipoAgente && G.tipoAgente!=='nenhum') badges.push({label:agenteInfo.icon+' '+agenteInfo.nome,cls:'gold'});
+  if(G.tipoContrato==='base') badges.push({label:'🌱 Categoria Base',cls:''});
+  if(G.fama>=50) badges.push({label:'⭐ Famoso',cls:'gold'});
+  if((G.lideranca||5)>=15) badges.push({label:'👑 Líder Nato',cls:'gold'});
+  if((G.compostura||5)>=15) badges.push({label:'🧘 Inabalável',cls:''});
+  badges.push({label: nac.label, cls:''});
+  document.getElementById('profile-badges').innerHTML=badges.map(b=>`<div class="badge ${b.cls}">${b.label}</div>`).join('');
+
+  // Actualizar stats de liderança/compostura
+  const lidEl = document.getElementById('prof-lideranca');
+  const compEl = document.getElementById('prof-compostura');
+  if (lidEl)  lidEl.textContent  = (G.lideranca||5)+'/20';
+  if (compEl) compEl.textContent = (G.compostura||5)+'/20';
+
+  // Summary stats (top grid)
+  const ovr = G.ovr || calculateOverall(G);
+  const ovrColor = ovr>=80?'#2dff6e':ovr>=65?'#f5c842':'#ff4757';
+  const entros = G.entrosamento||30;
+  const entrosColor = entros>=70?'#2dff6e':entros>=40?'#f5c842':'#ff4757';
+  const items=[
+    {label:'OVR',val:`<span style="color:${ovrColor};font-size:26px">${ovr}</span>`,big:true},
+    {label:'Idade',val:G.idade+' anos'},{label:'Salário',val:fmtSalarioDual(G.salario)},
+    {label:'Gols',val:G.gols},{label:'Assists',val:G.assists},{label:'Jogos',val:G.jogos},
+    {label:'Entros.',val:`<span style="color:${entrosColor}">${entros}</span>`}
+  ];
+  document.getElementById('profile-stats').innerHTML=items.map(i=>
+    `<div class="sf-card"><div class="sf-val">${i.val}</div><div class="sf-lbl">${i.label}</div></div>`
+  ).join('');
+
+  // Badges especiais: auge, lesão, arquétipo
+  const extrasEl = document.getElementById('profile-extras');
+  if (extrasEl && G.perfil==='jogador') {
+    let extHtml = '';
+    if (G.emLesao) extHtml += `<div class="lesao-badge">🩹 Lesionado: ${G.lesaoTipo} (${G.semanasLesao} sem.)</div>`;
+    if (G.idade>=24&&G.idade<=29) extHtml += '<div class="auge-badge">⚡ PERÍODO DE AUGE — treinos rendem o dobro!</div>';
+    if (G.idade>=32) extHtml += '<div class="lesao-badge">📉 Declínio físico gradual — foque em atributos mentais</div>';
+    if (G.arquetipo) {
+      const arq = getArquetipoPorGrupo(G.grupoPos).find(a=>a.key===G.arquetipo);
+      if (arq) extHtml += `<div class="auge-badge">${arq.icon} ${arq.nome} | ⭐ ${G.pontosArquetipo||0} pts | ${(G.talentos||[]).length} talentos</div>`;
+    }
+    if (G.promessaEpoca&&!G.promessaEpoca.cumprida) extHtml += `<div class="promessa-card"><div class="promessa-title">🤝 Promessa à Diretoria</div><div class="promessa-body">${G.promessaEpoca.meta} — prazo: ${G.promessaEpoca.prazoAno}</div></div>`;
+    extrasEl.innerHTML = extHtml;
+  }
+
+  // Full stats breakdown (only for jogador)
+  const fullStatsEl = document.getElementById('profile-full-stats');
+  if (!fullStatsEl) return;
+
+  if (G.perfil !== 'jogador') {
+    fullStatsEl.innerHTML = '';
+    return;
+  }
+
+  const statList = G.grupoPos === 'GOL' ? STATS_GOLEIRO : STATS_JOGADOR;
+  const groups = {};
+  statList.forEach(s => {
+    if (!groups[s.group]) groups[s.group] = [];
+    groups[s.group].push(s);
+  });
+
+  const groupLabels = { ATK:'⚡ Ataque', TEC:'🎯 Técnico', FIS:'💪 Físico', MEN:'🧠 Mental', DEF:'🛡️ Defesa', GK:'🧤 Goleiro' };
+
+  // Camisa do jogador no perfil
+  const camisaSection = document.getElementById('profile-camisa-section');
+  if (camisaSection && G.perfil==='jogador') {
+    const numAtual = G.camisa || 10;
+    const statusPedido = G.camisaPedida
+      ? (G.camisa === G.camisaPedida ? '✅ Pedido atendido' : '⏳ Pedido pendente: camisa '+G.camisaPedida)
+      : '';
+    camisaSection.innerHTML =
+      '<div class="sec-lbl" style="margin-top:12px;margin-bottom:8px">👕 Camisa</div>'+
+      '<div class="camisa-row">'+
+      '<div class="camisa-badge">'+numAtual+'</div>'+
+      '<div class="camisa-info">'+
+        '<div class="camisa-num">Camisa '+numAtual+'</div>'+
+        (statusPedido?'<div class="camisa-status">'+statusPedido+'</div>':'')+
+      '</div>'+
+      '<button class="camisa-btn" onclick="pedirCamisa()">Pedir outra</button>'+
+      '</div>';
+  }
+
+  fullStatsEl.innerHTML = Object.entries(groups).map(([grp, stats]) => `
+    <div class="stats-group">
+      <div class="stats-group-lbl">${groupLabels[grp]||grp}</div>
+      ${stats.map(s => {
+        const val = G.attrs[s.key]||0;
+        const clr = val>=80?'#2dff6e':val>=65?'#f5c842':val>=50?'#5bceff':'#ff4757';
+        return `<div class="stat-row-full">
+          <span class="srf-icon">${s.icon}</span>
+          <span class="srf-lbl">${s.label}</span>
+          <div class="srf-bar"><div class="srf-fill" style="width:${val}%;background:${clr}"></div></div>
+          <span class="srf-val" style="color:${clr}">${val}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  `).join('');
+}

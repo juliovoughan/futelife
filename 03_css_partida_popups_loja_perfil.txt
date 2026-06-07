@@ -1,0 +1,490 @@
+
+    <!-- MIDIA -->
+    <div id="screen-midia" class="screen">
+      <div class="screen-title">Midia</div>
+      <div id="midia-resumo-section"></div>
+      <div class="divider" style="margin:12px 0"></div>
+      <div id="midia-entrevista-section"></div>
+      <div class="divider" style="margin:12px 0"></div>
+      <div id="midia-patrocinios-section"></div>
+      <div class="divider" style="margin:12px 0"></div>
+      <div id="midia-redes-section"></div>
+    </div>
+
+    <!-- AGENTE / CONTRATOS -->
+    <div id="screen-agente" class="screen">
+      <div class="screen-title">💼 Agente &amp; Contratos</div>
+      <div id="agente-tipo-section"></div>
+      <div class="divider" style="margin:12px 0"></div>
+      <div id="agente-contrato-section"></div>
+      <div class="divider" style="margin:12px 0"></div>
+      <div id="agente-objetivo-section"></div>
+      <div class="divider" style="margin:12px 0"></div>
+      <div id="agente-furos-section"></div>
+    </div>
+
+    <!-- PERFIL -->
+    <div id="screen-perfil" class="screen">
+      <div class="profile-hero">
+        <div class="profile-avatar" id="profile-avatar">⚽</div>
+        <div class="p-name" id="profile-name">—</div>
+        <div class="p-club" id="profile-club">—</div>
+        <div class="p-badges" id="profile-badges"></div>
+      </div>
+      <div class="stats-full" id="profile-stats"></div>
+      <div id="profile-extras"></div>
+      <div id="profile-camisa-section"></div>
+      <div id="profile-full-stats"></div>
+      <div class="divider"></div>
+      <div class="sec-lbl" style="margin-top:8px;margin-bottom:8px">🎙️ Status de Liderança</div>
+      <div id="reuniao-stats-card" style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+        <div class="stat-mini-grid">
+          <div class="stat-mini"><span class="sm-icon">👑</span><span class="sm-lbl">Liderança</span><span class="sm-val" id="prof-lideranca">—</span></div>
+          <div class="stat-mini"><span class="sm-icon">🧘</span><span class="sm-lbl">Compostura</span><span class="sm-val" id="prof-compostura">—</span></div>
+        </div>
+        <div style="font-size:10.5px;color:var(--text2);margin-top:7px">Crescem com jogos. Desbloqueiam discursos no vestiário e reduzem DC dos eventos.</div>
+      </div>
+      <div class="divider"></div>
+      <div class="sec-lbl" style="margin-top:8px;margin-bottom:8px">💾 Save & Dados</div>
+      <div class="actions-grid">
+        <div class="action-card" onclick="saveGame(true)"><div class="ai">💾</div><div class="at">Salvar</div><div class="as">Save automático</div></div>
+        <div class="action-card" onclick="abrirSalvarSlot()"><div class="ai">📁</div><div class="at">Salvar Slot</div><div class="as">Nomear save</div></div>
+        <div class="action-card" onclick="abrirMenuSaves()"><div class="ai">📂</div><div class="at">Carregar</div><div class="as">Ver saves</div></div>
+        <div class="action-card" onclick="openConfigSimGlobal()"><div class="ai">🌍</div><div class="at">Simulação</div><div class="as">Ligas globais</div></div>
+        <div class="action-card" onclick="exportarSave()"><div class="ai">📤</div><div class="at">Exportar</div><div class="as">Copiar dados</div></div>
+        <div class="action-card" onclick="importarSave()"><div class="ai">📥</div><div class="at">Importar</div><div class="as">Colar dados</div></div>
+        <div class="action-card" onclick="confirmReset()"><div class="ai" style="color:var(--red)">🗑️</div><div class="at" style="color:var(--red)">Recomeçar</div></div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+
+  <nav id="bottom-nav">
+    <button class="nav-btn" id="nav-home"    onclick="navTo('home')">    <span class="icon">🏠</span>Casa</button>
+    <button class="nav-btn" id="nav-treino"  onclick="navTo('treino')">  <span class="icon">💪</span>Treino</button>
+    <button class="nav-btn" id="nav-partida" onclick="navTo('partida')"> <span class="icon">⚽</span>Partida</button>
+    <button class="nav-btn" id="nav-loja"    onclick="navTo('loja')">    <span class="icon">🛍️</span>Loja</button>
+    <button class="nav-btn" id="nav-midia"   onclick="navTo('midia')">   <span class="icon">📱</span>Mídia</button>
+    <button class="nav-btn" id="nav-agente"  onclick="navTo('agente')">  <span class="icon">💼</span>Agente</button>
+    <button class="nav-btn" id="nav-perfil"  onclick="navTo('perfil')">  <span class="icon">👤</span>Perfil</button>
+  </nav>
+</div>
+
+<div id="popup-overlay" onclick="closePopupOutside(event)">
+  <div id="popup-modal"><div class="pm-handle"></div><div id="pm-content"></div></div>
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+// ─── DATA ────────────────────────────────────────────────────
+
+const LIGAS = {
+  'Premier League': { pais:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', clubes:['Arsenal','Chelsea','Liverpool','Man City','Man Utd','Tottenham','Newcastle','Aston Villa','Brighton','West Ham'] },
+  'La Liga':        { pais:'🇪🇸', clubes:['Barcelona','Real Madrid','Atlético Madrid','Sevilla','Valencia','Betis','Villarreal','Athletic Club','Celta Vigo','Osasuna'] },
+  'Brasileirão':    { pais:'🇧🇷', clubes:['Flamengo','Palmeiras','São Paulo','Corinthians','Grêmio','Internacional','Atlético-MG','Fluminense','Vasco','Botafogo'] },
+  'Bundesliga':     { pais:'🇩🇪', clubes:['Bayern','Dortmund','RB Leipzig','Leverkusen','Frankfurt','Stuttgart','Wolfsburg','Freiburg','Hoffenheim','Gladbach'] },
+  'Serie A':        { pais:'🇮🇹', clubes:['Juventus','Inter','Milan','Roma','Napoli','Lazio','Fiorentina','Atalanta','Torino','Bologna'] },
+  'Primeira Liga':  { pais:'🇵🇹', clubes:['Benfica','Porto','Sporting CP','Braga','Guimarães','Famalicão','Rio Ave','Estoril','Marítimo','Vitória SC'] }
+};
+
+const GLOBAL_LEAGUE_SEEDS = [
+  { id:'premier_league', nome:'Premier League', pais:'Inglaterra', temporada:'2024/25', ovr:78, clubes:['Arsenal','Aston Villa','Bournemouth','Brentford','Brighton','Chelsea','Crystal Palace','Everton','Fulham','Ipswich Town','Leicester City','Liverpool','Man City','Man Utd','Newcastle','Nottingham Forest','Southampton','Tottenham','West Ham','Wolves'] },
+  { id:'la_liga', nome:'La Liga', pais:'Espanha', temporada:'2024/25', ovr:79, clubes:['Alaves','Athletic Club','Atletico Madrid','Barcelona','Celta Vigo','Espanyol','Getafe','Girona','Las Palmas','Leganes','Mallorca','Osasuna','Rayo Vallecano','Real Betis','Real Madrid','Real Sociedad','Sevilla','Valencia','Valladolid','Villarreal'] },
+  { id:'brasileirao', nome:'Brasileirao', pais:'Brasil', temporada:'2024', ovr:68, clubes:['Atletico-GO','Atletico-MG','Athletico-PR','Bahia','Botafogo','Corinthians','Criciuma','Cruzeiro','Cuiaba','Flamengo','Fluminense','Fortaleza','Gremio','Internacional','Juventude','Palmeiras','Red Bull Bragantino','Sao Paulo','Vasco','Vitoria'] },
+  { id:'bundesliga', nome:'Bundesliga', pais:'Alemanha', temporada:'2024/25', ovr:76, clubes:['Augsburg','Bayern','Bochum','Borussia Dortmund','Borussia Monchengladbach','Eintracht Frankfurt','Freiburg','Heidenheim','Hoffenheim','Holstein Kiel','Leverkusen','Mainz','RB Leipzig','St Pauli','Stuttgart','Union Berlin','Werder Bremen','Wolfsburg'] },
+  { id:'serie_a', nome:'Serie A', pais:'Italia', temporada:'2024/25', ovr:75, clubes:['Atalanta','Bologna','Cagliari','Como','Empoli','Fiorentina','Genoa','Hellas Verona','Inter','Juventus','Lazio','Lecce','Milan','Monza','Napoli','Parma','Roma','Torino','Udinese','Venezia'] },
+  { id:'primeira_liga', nome:'Primeira Liga', pais:'Portugal', temporada:'2024/25', ovr:70, clubes:['AVS','Arouca','Benfica','Boavista','Braga','Casa Pia','Estoril','Estrela Amadora','Famalicao','Farense','Gil Vicente','Moreirense','Nacional','Porto','Rio Ave','Santa Clara','Sporting CP','Vitoria SC'] },
+];
+
+const LIGA_NOME_TO_ID = {
+  'Premier League':'premier_league', 'La Liga':'la_liga', 'Brasileirão':'brasileirao', 'Brasileirao':'brasileirao',
+  'Bundesliga':'bundesliga', 'Serie A':'serie_a', 'Primeira Liga':'primeira_liga'
+};
+
+const CLUBES_PEQUENOS = ['Audax','Operário','CRB','Náutico','Vila Nova','Remo','Paysandu','Figueirense','Londrina','Avaí','Lugo','Huesca','Barnsley','Burton Albion','Sandhausen'];
+
+const POS_ESP = {
+  ATA: [
+    { key:'CF',  label:'Centro-Avante', desc:'9 clássico'     },
+    { key:'ALE', label:'Ala / Ponta',   desc:'Extremo, ponta' },
+    { key:'SA',  label:'Segundo Ata.',  desc:'Falso 9, sombra' }
+  ],
+  MEI: [
+    { key:'MC',  label:'Meia-Centro',   desc:'Box-to-box'     },
+    { key:'MAO', label:'Meia Ofensivo', desc:'10, trequartista'},
+    { key:'VOL', label:'Volante',       desc:'Ancoragem, 6'   },
+    { key:'MAE', label:'Meia Lateral',  desc:'8, Carrilero'   }
+  ],
+  DEF: [
+    { key:'CB',  label:'Zagueiro',      desc:'CB clássico'    },
+    { key:'LD',  label:'Lat. Direito',  desc:'Lateral D'      },
+    { key:'LE',  label:'Lat. Esquerdo', desc:'Lateral E'      }
+  ],
+  GOL: [
+    { key:'GOL', label:'Goleiro',       desc:'GK'             }
+  ]
+};
+
+// ─── 18 STATS DO JOGADOR (campo) ─────────────────────────────
+const STATS_JOGADOR = [
+  { key:'finalizacao',  label:'Finalização',         icon:'🥅', group:'ATK' },
+  { key:'chuteLongo',   label:'Chute Longo',          icon:'💥', group:'ATK' },
+  { key:'curva',        label:'Curva',                icon:'🌀', group:'ATK' },
+  { key:'cabecio',      label:'Cabeceio',             icon:'🤯', group:'ATK' },
+  { key:'passeCurto',   label:'Passe Curto',          icon:'🔄', group:'TEC' },
+  { key:'passeLongo',   label:'Passe Longo',          icon:'📡', group:'TEC' },
+  { key:'cruzamento',   label:'Cruzamento',           icon:'📐', group:'TEC' },
+  { key:'drible',       label:'Drible',               icon:'🎩', group:'TEC' },
+  { key:'controleBola', label:'Controle de Bola',     icon:'⚽', group:'TEC' },
+  { key:'agilidade',    label:'Agilidade',            icon:'🤸', group:'FIS' },
+  { key:'aceleracao',   label:'Aceleração',           icon:'⚡', group:'FIS' },
+  { key:'velocidade',   label:'Velocidade',           icon:'💨', group:'FIS' },
+  { key:'resistencia',  label:'Resistência',          icon:'🔋', group:'FIS' },
+  { key:'forca',        label:'Força',                icon:'💪', group:'FIS' },
+  { key:'salto',        label:'Salto',                icon:'🦅', group:'FIS' },
+  { key:'posicao',      label:'Posicionamento',       icon:'🎯', group:'MEN' },
+  { key:'reacoes',      label:'Reações',              icon:'🧠', group:'MEN' },
+  { key:'tackle',       label:'Tackle',               icon:'🛡️', group:'DEF' }
+];
+
+// Stats exclusivos de goleiro (substituem os 18 acima para GOL)
+const STATS_GOLEIRO = [
+  { key:'diving',       label:'Mergulho',    icon:'🧤', group:'GK' },
+  { key:'handling',     label:'Pegada',      icon:'✋', group:'GK' },
+  { key:'reflexosGK',   label:'Reflexos',    icon:'⚡', group:'GK' },
+  { key:'posicaoGK',    label:'Posicion. GK',icon:'🎯', group:'GK' },
+  { key:'chutaGK',      label:'Chute (GK)',  icon:'🥅', group:'GK' },
+  { key:'velocidadeGK', label:'Velocidade',  icon:'💨', group:'GK' },
+  { key:'forca',        label:'Força',       icon:'💪', group:'FIS' },
+  { key:'salto',        label:'Salto',       icon:'🦅', group:'FIS' },
+  { key:'resistencia',  label:'Resistência', icon:'🔋', group:'FIS' },
+  { key:'agilidade',    label:'Agilidade',   icon:'🤸', group:'FIS' },
+  { key:'reacoes',      label:'Reações',     icon:'🧠', group:'MEN' },
+  { key:'posicao',      label:'Posicion.',   icon:'🎯', group:'MEN' }
+];
+
+// Mapa de todos os labels e ícones (união)
+const ATTR_LABELS = {};
+const ATTR_ICONS  = {};
+[...STATS_JOGADOR, ...STATS_GOLEIRO].forEach(s => {
+  ATTR_LABELS[s.key] = s.label;
+  ATTR_ICONS[s.key]  = s.icon;
+});
+
+// Keys por grupo de posição (para geração de atributos)
+const ATTRS_BY_GROUP = {
+  ATA: STATS_JOGADOR.map(s=>s.key),
+  MEI: STATS_JOGADOR.map(s=>s.key),
+  DEF: STATS_JOGADOR.map(s=>s.key),
+  GOL: STATS_GOLEIRO.map(s=>s.key)
+};
+
+// Prioridades de treino por grupo (primeiros 5 ganham boost na geração)
+const STAT_PRIO = {
+  ATA: ['finalizacao','drible','aceleracao','velocidade','posicao','reacoes','controleBola','curva','chuteLongo','cabecio'],
+  MEI: ['passeCurto','drible','controleBola','reacoes','posicao','passeLongo','aceleracao','velocidade','cruzamento','resistencia'],
+  DEF: ['tackle','posicao','forca','salto','cabecio','resistencia','velocidade','aceleracao','passeLongo','passeCurto'],
+  GOL: ['diving','handling','reflexosGK','posicaoGK','velocidadeGK','chutaGK','forca','salto','resistencia','agilidade']
+};
+
+// ─── NATIONALIDADES ──────────────────────────────────────────
+const NACIONALIDADES = [
+  { key:'BRA', label:'🇧🇷 Brasil',     ligaAfinidade:'Brasileirão',    selecaoForca:90, convocBônus:20 },
+  { key:'ENG', label:'🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra', ligaAfinidade:'Premier League',  selecaoForca:82, convocBônus:10 },
+  { key:'ESP', label:'🇪🇸 Espanha',    ligaAfinidade:'La Liga',         selecaoForca:88, convocBônus:12 },
+  { key:'GER', label:'🇩🇪 Alemanha',   ligaAfinidade:'Bundesliga',      selecaoForca:85, convocBônus:10 },
+  { key:'ITA', label:'🇮🇹 Itália',     ligaAfinidade:'Serie A',         selecaoForca:84, convocBônus:10 },
+  { key:'POR', label:'🇵🇹 Portugal',   ligaAfinidade:'Primeira Liga',   selecaoForca:86, convocBônus:15 },
+  { key:'ARG', label:'🇦🇷 Argentina',  ligaAfinidade:'Brasileirão',     selecaoForca:91, convocBônus:18 },
+  { key:'FRA', label:'🇫🇷 França',     ligaAfinidade:'Premier League',  selecaoForca:89, convocBônus:12 },
+  { key:'OUT', label:'🌍 Outros',      ligaAfinidade:null,              selecaoForca:70, convocBônus:0  }
+];
+
+const ATTRS_TREINADOR = [
+  {key:'tatica',label:'Tática',icon:'📋'},{key:'motivacao',label:'Motivação',icon:'🔥'},
+  {key:'gestao',label:'Gestão',icon:'💼'},{key:'tecnico',label:'Técnico',icon:'📐'},
+  {key:'networking',label:'Networking',icon:'🤝'},{key:'psicologia',label:'Psicologia',icon:'🧠'}
+];
+
+// Tipo de resultado de evento
+// result: 'gol' | 'assist' | 'chance' | 'interceptacao' | 'recuperacao' | 'bloqueio'
+
+// ─── SISTEMA DE REUNIÃO PRÉ-JOGO ────────────────────────────
+//
+// STATUS: lideranca, compostura (globais, crescem com o tempo)
+// DINÂMICOS: audacia, visao, intimidacao (escolhidos no discurso)
+// BUFF: calculado no D20 — reduz DC dos eventos na partida
+//
+// Fluxo: escolher discurso → rolar D20+status → calcular bônus
+//        → aplicar como redução de DC nos eventos do arquétipo
+
+const DISCURSOS = {
+  // Audácia: facilita gol_chance, duelo ofensivo
+  audacia: {
+    icon: '🔥', nome: 'Audácia',
+    stat: 'audacia',  // stat dinâmico da reunião
+    desc: 'Inspire confiança e prometa resultados.',
+    frases: [
+      '"Hoje ninguém me para. Estou no nível deles." (+Audácia)',
+      '"Vou marcar hoje. Podem apostar." (+Audácia)',
+      '"Dá a bola pra mim que eu resolvo." (+Audácia)',
+    ],
+    eventosAfetados: ['gol_chance','duelo'],
+    arquetiposAfetados: ['pivo','velocista','matador'],
+  },
+  visao: {
+    icon: '🧠', nome: 'Visão/Tática',
+    stat: 'visao',
+    desc: 'Mostre que leu o jogo do adversário.',
+    frases: [
+      '"Olhei o filme deles — sei onde atacar." (+Visão)',
+      '"O espaço é entre o 4 e o 6. Vamos explorar." (+Visão)',
+      '"Ligação rápida, pressionar alto, recuperar cedo." (+Visão)',
+    ],
+    eventosAfetados: ['ligacao','duelo'],
+    arquetiposAfetados: ['maestro','guerreiro','lateral_atk'],
+  },
+  intimidacao: {
+    icon: '💪', nome: 'Intimidação',
+    stat: 'intimidacao',
+    desc: 'Mostre determinação e garra defensiva.',
+    frases: [
+      '"Daqui não passam. Que tentem." (+Intimidação)',
+      '"Cada bola é nossa. Cada dividida, ganhamos." (+Intimidação)',
+      '"Eles têm medo de entrar na nossa área." (+Intimidação)',
+    ],
+    eventosAfetados: ['defesa'],
+    arquetiposAfetados: ['zagueirão','guerreiro','reflexos'],
+  },
+  lideranca_disc: {
+    icon: '👑', nome: 'Liderança',
+    stat: 'lideranca', // usa stat global
+    desc: 'Eleve o grupo. O líder fala por todos.',
+    frases: [
+      '"Confio em cada um de vocês. Vamos juntos." (+Liderança)',
+      '"Somos um time. Ganhar e perder junto." (+Liderança)',
+    ],
+    eventosAfetados: ['gol_chance','defesa','ligacao','duelo'],
+    arquetiposAfetados: [], // afeta todos
+    requireLideranca: 8,   // só disponível se lideranca >= 8
+  },
+  compostura_disc: {
+    icon: '🧘', nome: 'Compostura',
+    stat: 'compostura', // usa stat global
+    desc: 'Mantenha a cabeça fria e o time calmo.',
+    frases: [
+      '"Cabeça no lugar. Jogo a jogo, sem pressa." (+Compostura)',
+      '"Não importa o resultado parcial — continuamos." (+Compostura)',
+    ],
+    eventosAfetados: ['gol_chance','defesa','ligacao','duelo'],
+    arquetiposAfetados: [],
+    requireCompostura: 8,
+  },
+};
+
+// Calcular o buff da reunião a partir do roll D20
+// BonusPartida = floor((D20 + statEscolhido + moralPreJogo/10 + lideranca/2) / 5)
+// Reduz DC dos eventos afetados pelo discurso
+
+const MOMENTOS_PARTIDA = {
+  semPlayerComPosse: [
+    '{time} troca passes com calma. {influencia}',
+    '{time} encontra espaco pelo corredor e empurra o adversario para tras.',
+    'A bola passa pelo meio, {time} acelera e tenta criar superioridade.',
+    '{time} roda a jogada ate achar um cruzamento limpo.',
+    'Pressao de {time}. A torcida sente que o lance pode crescer.'
+  ],
+  semPlayerSemPosse: [
+    '{adv} fica com a bola e obriga {time} a baixar as linhas. {influencia}',
+    '{adv} chega perto da area, mas a defesa fecha o centro.',
+    'Momento de cuidado: {adv} prende a posse e procura um passe vertical.',
+    '{time} sofre pressao e tenta respirar em transicao.',
+    '{adv} cruza fechado. A zaga afasta como consegue.'
+  ],
+  playerComPosse: [
+    '{player} aparece entre linhas e muda o ritmo da jogada. {resultado}',
+    '{player} participa direto do ataque. {resultado}',
+    'A bola passa por {player}, e o time ganha metros. {resultado}',
+    '{player} chama responsabilidade no ultimo terco. {resultado}',
+    'O lance nasce no pe de {player}. {resultado}'
+  ],
+  playerSemPosse: [
+    '{player} trabalha sem a bola e influencia a marcacao. {resultado}',
+    '{player} acompanha a jogada defensiva. {resultado}',
+    'Sem posse, {player} le o movimento adversario. {resultado}',
+    '{player} fecha o espaco e tenta quebrar o ataque. {resultado}',
+    'O adversario tenta passar pelo setor de {player}. {resultado}'
+  ]
+};
+
+const RESULTADOS_MOMENTO = {
+  gol: {
+    ok: ['Finalizacao perfeita: bola na rede!', 'Ele decide o lance com frieza.', 'O goleiro nao chega. Gol!'],
+    fail: ['A finalizacao sai pressionada e o goleiro defende.', 'A bola passa perto, mas nao entra.', 'Faltou um detalhe no ultimo toque.']
+  },
+  assist: {
+    ok: ['Passe decisivo, companheiro livre e gol.', 'Ele quebra a defesa com um passe limpo.', 'A assistencia desmonta a marcacao.'],
+    fail: ['O passe era bom, mas o companheiro nao converte.', 'A defesa corta no limite.', 'A ideia foi boa, a execucao ficou curta.']
+  },
+  chance: {
+    ok: ['A chance vira uma jogada clara de perigo.', 'Ele cria vantagem e o time quase marca.', 'A defesa adversaria fica exposta.'],
+    fail: ['A jogada perde forca antes da finalizacao.', 'O lance parecia promissor, mas morre na entrada da area.', 'O adversario recompõe no ultimo segundo.']
+  },
+  interceptacao: {
+    ok: ['Intercepcao limpa, ataque adversario encerrado.', 'Ele corta a linha de passe e muda o momento do jogo.', 'Leitura perfeita para recuperar o controle.'],
+    fail: ['Ele tenta antecipar, mas a bola passa.', 'A marcacao chega atrasada.', 'O adversario escapa da pressao.']
+  },
+  recuperacao: {
+    ok: ['Bola recuperada e contra-ataque armado.', 'Ele ganha o duelo e levanta o time.', 'Recuperacao forte no meio-campo.'],
+    fail: ['Ele disputa, mas perde o corpo a corpo.', 'A recuperacao nao encaixa e o adversario segue com a bola.', 'O bote sai um pouco fora do tempo.']
+  },
+  bloqueio: {
+    ok: ['Bloqueio importante, chute travado.', 'Ele poe o corpo na frente e salva o lance.', 'A finalizacao adversaria para nele.'],
+    fail: ['O chute passa pelo bloqueio.', 'Ele tenta travar, mas a bola desvia perigosa.', 'O adversario consegue finalizar mesmo pressionado.']
+  }
+};
+
+
+// ─── ARQUÉTIPOS E TALENTOS ──────────────────────────────────
+
+const ARQUETIPOS = {
+  ATA: [
+    { key:'pivo',      icon:'🏋️', nome:'Pivô Clássico',    desc:'Joga de costas, domina na força e no cabeceamento.',
+      bnus:{ forca:+5, cabecio:+5, posicionamento:+3 },
+      talentos:[
+        { key:'cabeca_de_area', nome:'Cabeça de Área',   custo:1, efeito:'+10% chance gol de cabeça', attrBonus:{cabecio:4} },
+        { key:'parede_humana',  nome:'Parede Humana',    custo:1, efeito:'+6 Força, mais difícil de perder a bola', attrBonus:{forca:6} },
+        { key:'finalizador',    nome:'Finalizador Nato',  custo:2, efeito:'+8 Finalização, -5 dificuldade gol_chance', attrBonus:{finalizacao:8} },
+        { key:'veterano',       nome:'Veterano',          custo:2, efeito:'Perde 50% menos atributos físicos após 32 anos', attrBonus:{} },
+      ]
+    },
+    { key:'velocista',  icon:'⚡', nome:'Velocista',        desc:'Explora os espaços com velocidade e aceleração explosiva.',
+      bnus:{ velocidade:+6, aceleracao:+5, drible:+3 },
+      talentos:[
+        { key:'rajada',         nome:'Rajada de Velocidade', custo:1, efeito:'+8 Aceleração, mais passes para você', attrBonus:{aceleracao:6} },
+        { key:'driblador',      nome:'Driblador Nato',       custo:1, efeito:'+8 Drible, -8 dif duelo', attrBonus:{drible:8} },
+        { key:'contra_ataque',  nome:'Rei do Contra',        custo:2, efeito:'+20% chance gol em recuperação de bola', attrBonus:{velocidade:4} },
+        { key:'faro_de_gol',    nome:'Faro de Gol',          custo:2, efeito:'+6 Finalização, +10% eventos gol_chance', attrBonus:{finalizacao:6} },
+      ]
+    },
+  ],
+  MEI: [
+    { key:'maestro',    icon:'🎼', nome:'Maestro',           desc:'Distribuição de jogo, visão e passes precisos são sua marca.',
+      bnus:{ passeCurto:+5, passeLongo:+4, mental:+4 },
+      talentos:[
+        { key:'visao360',       nome:'Visão 360°',            custo:1, efeito:'+8 Visão de Jogo, mais eventos de ligação', attrBonus:{mental:6} },
+        { key:'passe_perfeito', nome:'Passe Perfeito',        custo:1, efeito:'+8 Passe Curto, -8 dif assist', attrBonus:{passeCurto:8} },
+        { key:'meia10',         nome:'Camisa 10',             custo:2, efeito:'Entrosamento sobe 30% mais rápido', attrBonus:{passeLongo:5} },
+        { key:'construtor',     nome:'Construtor',            custo:2, efeito:'Assists valem +2 moral', attrBonus:{} },
+      ]
+    },
+    { key:'guerreiro',  icon:'🛡️', nome:'Guerreiro',         desc:'Cobre quilômetros, recupera bolas e protege a defesa.',
+      bnus:{ defesa:+5, resistencia:+5, posicionamento:+4 },
+      talentos:[
+        { key:'interceptador',  nome:'Interceptador',         custo:1, efeito:'+8 Defesa, -8 dif interceptacao', attrBonus:{defesa:8} },
+        { key:'stamina',        nome:'Stamina de Ferro',      custo:1, efeito:'Perde 40% menos energia em partidas', attrBonus:{resistencia:6} },
+        { key:'lider_campo',    nome:'Líder em Campo',        custo:2, efeito:'+5 moral do time quando recupera a bola', attrBonus:{} },
+        { key:'muro',           nome:'O Muro',                custo:2, efeito:'+8 Posicionamento, mais eventos defensivos', attrBonus:{posicionamento:8} },
+      ]
+    },
+  ],
+  DEF: [
+    { key:'zagueirão',  icon:'🧱', nome:'Zagueirão',         desc:'Duro na marcação, dominante no aéreo.',
+      bnus:{ defesa:+6, cabecio:+5, forca:+4 },
+      talentos:[
+        { key:'muro_def',       nome:'Muralha',               custo:1, efeito:'+8 Defesa, -5 chance adv marcar por evento', attrBonus:{defesa:8} },
+        { key:'cabecazo',       nome:'Cabeçazo',              custo:1, efeito:'+8 Cabeceio, pode marcar em escanteios', attrBonus:{cabecio:8} },
+        { key:'lider_def',      nome:'Líder da Defesa',       custo:2, efeito:'+10 Posicionamento, -5 gols adv por jogo', attrBonus:{posicionamento:8} },
+        { key:'capitao',        nome:'Capitão',               custo:2, efeito:'+5 entrosamento por jogo', attrBonus:{} },
+      ]
+    },
+    { key:'lateral_atk', icon:'⚡', nome:'Lateral Ofensivo', desc:'Sobe e desce sem parar, cruza com precisão.',
+      bnus:{ velocidade:+5, cruzamento:+6, aceleracao:+4 },
+      talentos:[
+        { key:'cruzador',       nome:'Cruzador',              custo:1, efeito:'+8 Cruzamento, -5 dif assist', attrBonus:{cruzamento:8} },
+        { key:'lateral_voa',    nome:'Lateral Voador',        custo:1, efeito:'+6 Velocidade, mais eventos de ligação', attrBonus:{velocidade:6} },
+        { key:'sobreposicao',   nome:'Sobreposição',          custo:2, efeito:'Dribla laterais adversários com +20% sucesso', attrBonus:{drible:6} },
+        { key:'pulmao',         nome:'Pulmão Infinito',       custo:2, efeito:'Perde 30% menos energia por jogo', attrBonus:{resistencia:6} },
+      ]
+    },
+  ],
+  GOL: [
+    { key:'reflexos', icon:'🧤', nome:'Guardião de Reflexos', desc:'Para tudo com reflexos absurdos. Especialista em defesas difíceis.',
+      bnus:{ reflexosGK:+6, diving:+5, handling:+4 },
+      talentos:[
+        { key:'reacao',         nome:'Reação Felina',       custo:1, efeito:'+8 Reflexos, -15% chance adv marcar', attrBonus:{reflexosGK:8} },
+        { key:'defesa_penalti', nome:'Pegador de Pênaltis', custo:1, efeito:'+30% chance pegar pênalti',           attrBonus:{diving:6} },
+        { key:'inexpugnavel',   nome:'Inexpugnável',        custo:2, efeito:'1x por jogo: nega gol automaticamente', attrBonus:{} },
+        { key:'gk_acrobata',    nome:'Goleiro Acrobata',    custo:2, efeito:'+6 diving, +4 agilidade',             attrBonus:{diving:6,agilidade:4} },
+      ]
+    },
+    { key:'comandante', icon:'📢', nome:'Goleiro Comandante', desc:'Domina a área com autoridade. Distribui bem e organiza a defesa.',
+      bnus:{ posicaoGK:+6, handling:+5, chutaGK:+4 },
+      talentos:[
+        { key:'saida_de_bola',  nome:'Saída de Bola',       custo:1, efeito:'+8 passe longo, inicia jogadas',      attrBonus:{chutaGK:8} },
+        { key:'gk_lider',       nome:'Goleiro-Líder',       custo:1, efeito:'+8 posicionamentoGK, comanda defesa', attrBonus:{posicaoGK:8} },
+        { key:'sweep_keeper',   nome:'Sweep Keeper',        custo:2, efeito:'+6 velocidadeGK, intercepta cruzamentos', attrBonus:{velocidadeGK:6} },
+        { key:'muralha',        nome:'A Muralha',           custo:2, efeito:'-20% chance adv marcar na área',      attrBonus:{} },
+      ]
+    },
+  ],
+};
+
+// Obter arquétipos disponíveis para o grupo de posição
+function getArquetipoPorGrupo(grupo) {
+  return ARQUETIPOS[grupo] || ARQUETIPOS.ATA;
+}
+
+// Aplicar bônus do arquétipo nos attrs
+function applyArquetipoBonus(arqKey, grupo) {
+  const arqs = getArquetipoPorGrupo(grupo);
+  const arq  = arqs.find(a => a.key === arqKey);
+  if (!arq) return;
+  Object.entries(arq.bnus).forEach(([stat, val]) => {
+    addAttrBonus(stat, val);
+  });
+}
+
+// Aplicar bônus de um talento
+function applyTalentoBonus(talKey, grupo) {
+  const arqs = getArquetipoPorGrupo(grupo);
+  for (const arq of arqs) {
+    const tal = arq.talentos?.find(t => t.key === talKey);
+    if (tal && tal.attrBonus) {
+      Object.entries(tal.attrBonus).forEach(([stat, val]) => {
+        addAttrBonus(stat, val);
+      });
+      return tal;
+    }
+  }
+  return null;
+}
+
+const ATTR_ALIAS = {
+  defesa: 'tackle',
+  posicionamento: 'posicao',
+  mental: 'reacoes',
+  fisico: 'forca'
+};
+
+function attrKey(key) {
+  return ATTR_ALIAS[key] || key;
+}
+
+function addAttrBonus(key, val) {
+  const realKey = attrKey(key);
+  G.attrs[realKey] = Math.min(99, (G.attrs[realKey]||0) + val);
+}
+
+function getSkillValue(key, fallback = 0) {
+  if (!G || !G.attrs) return fallback;
+  if (key === 'fisico') {
+    return Math.round(((G.attrs.forca||0) + (G.attrs.resistencia||0) + (G.attrs.salto||0)) / 3) || fallback;
+  }
+  if (key === 'mental') {
+    return Math.round(((G.attrs.reacoes||0) + (G.attrs.posicao||0) + (G.compostura||5)) / 3) || fallback;
+  }
+  const realKey = attrKey(key);
+  return G.attrs[realKey] ?? fallback;
+}

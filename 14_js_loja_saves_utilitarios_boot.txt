@@ -1,0 +1,632 @@
+
+function renderEstoque() {
+  const inv = getInventario();
+  const wrap = document.getElementById('loja-estoque');
+  const itens = CONSUMIVEIS.filter(c => (inv[c.id]||0) > 0);
+  if (!itens.length) {
+    wrap.innerHTML = '<div class="estoque-vazio">Seu estoque está vazio. Compre itens acima! 👆</div>';
+    return;
+  }
+  wrap.innerHTML = itens.map(c => `
+    <div class="estoque-pill" onclick="usarItem('${c.id}')">
+      <div class="ep-icon">${c.icon}</div>
+      <div class="ep-info">
+        <div class="ep-name">${c.nome}</div>
+        <div class="ep-qtd">${inv[c.id]}x no estoque</div>
+        <div class="ep-use">Toque para usar ▶</div>
+      </div>
+    </div>`).join('');
+}
+
+const MAX_INV = 20; // Limite máximo de itens no inventário (BUG FIX: inventário infinito)
+
+function _totalInventario() {
+  const inv = getInventario();
+  return Object.values(inv).reduce((acc, v) => acc + (typeof v === 'number' ? v : 0), 0);
+}
+
+function comprarItem(id) {
+  if (!G) return;
+  const item = CONSUMIVEIS.find(c => c.id === id);
+  if (!item) return;
+  if (comprarItem._lock) return;
+  comprarItem._lock = true;
+  setTimeout(() => { comprarItem._lock = false; }, 1200);
+  if (G.dinheiro < item.preco) {
+    showToast('💸 Dinheiro insuficiente!');
+    return;
+  }
+  if (_totalInventario() >= MAX_INV) {
+    showToast('🎒 Estoque cheio! Máximo de ' + MAX_INV + ' itens.');
+    return;
+  }
+  showPopup({
+    icon: item.icon,
+    titulo: `Comprar ${item.nome}?`,
+    corpo: `${item.desc}
+
+${item.efeitoLabel}
+
+Preço: ${fmtMoney(item.preco)}
+Seu saldo: ${fmtMoney(G.dinheiro)}
+Itens no estoque: ${_totalInventario()}/${MAX_INV}`,
+    botoes: [
+      { icon:'✅', text:`Comprar por ${fmtMoney(item.preco)}`, acao: () => {
+        // BUG FIX: re-validar saldo e espaço no momento da confirmação
+        if (G.dinheiro < item.preco) { showToast('💸 Saldo insuficiente!'); closePopup(); return; }
+        if (_totalInventario() >= MAX_INV) { showToast('🎒 Estoque cheio!'); closePopup(); return; }
+        G.dinheiro -= item.preco;
+        const inv = getInventario();
+        inv[item.id] = (inv[item.id] || 0) + 1;
+        closePopup();
+        saveGame(false);
+        renderLojaScreen();
+        updateTopBar();
+        showToast(`${item.icon} ${item.nome} comprado! (${inv[item.id]}x no estoque)`);
+      }},
+      { icon:'❌', text:'Cancelar', acao: closePopup }
+    ]
+  });
+}
+
+function usarItem(id) {
+  if (!G) return;
+  const inv = getInventario();
+  if (!inv[id] || inv[id] <= 0) { showToast('Estoque vazio!'); return; }
+  const item = CONSUMIVEIS.find(c => c.id === id);
+  if (!item) return;
+
+  // ── Energético: regras especiais ─────────────────────────
+  if (item.tipo === 'energetico') {
+    const hoje   = G.energeticoHoje   || 0;
+    const semana = G.energeticoSemana || 0;
+    if (hoje >= 2) {
+      showPopup({ icon:'⚠️', titulo:'Limite diário!',
+        corpo:'Você já tomou 2 energéticos hoje.\nLimite: 2/dia e 3/semana.\nAguarde o próximo dia.',
+        botoes:[{ icon:'❌', text:'Fechar', acao: closePopup }]
+      }); return;
+    }
+    if (semana >= 3) {
+      showPopup({ icon:'⚠️', titulo:'Limite semanal!',
+        corpo:'Você já atingiu o limite de 3 energéticos esta semana.\nO limite reseta a cada semana de partida.',
+        botoes:[{ icon:'❌', text:'Fechar', acao: closePopup }]
+      }); return;
+    }
+    // Efeito imediato: +10% de energia (= 10 pts fixos)
+    const antesE = G.energia;
+    G.energia = Math.min(energiaCap(), G.energia + 10);
+    const deltaE = G.energia - antesE;
+    // Registrar para bônus de recuperação do dia (+5% na virada)
+    G.energeticoHoje   = hoje + 1;
+    G.energeticoSemana = semana + 1;
+    inv[id]--; if (inv[id] <= 0) delete inv[id];
+    saveGame(false); updateTopBar(); renderEstoque();
+    const restDia = 2 - G.energeticoHoje;
+    const restSem = 3 - G.energeticoSemana;
+    showPopup({ icon:'⚡', titulo:'Energético tomado!',
+      corpo:`+${deltaE} energia agora (${G.energia}/${energiaCap()})\n+5% bônus na recuperação ao fim do dia\n\nUsados hoje: ${G.energeticoHoje}/2 | Semana: ${G.energeticoSemana}/3\nRestam hoje: ${restDia} | Semana: ${restSem}`,
+      botoes:[{ icon:'💪', text:'Fechar', acao: closePopup }]
+    }); return;
+  }
+
+  // ── Cápsula de Sono: marca flag para dobrar recuperação amanhã ──
+  if (item.tipo === 'sono') {
+    G.sonoAtivo = true;
+    if (item.moralBonus) G.moral = Math.min(100, G.moral + item.moralBonus);
+    inv[id]--; if (inv[id] <= 0) delete inv[id];
+    saveGame(false); updateTopBar(); renderEstoque();
+    showPopup({ icon:'🛌', titulo:'Cápsula ativada!',
+      corpo:'A recuperação de amanhã será o dobro do normal.\n+'+item.moralBonus+' moral agora.',
+      botoes:[{ icon:'✔️', text:'Dormir bem!', acao: closePopup }]
+    }); return;
+  }
+
+  // ── Outros consumíveis ────────────────────────────────────
+  const GANHO_IMEDIATO = { gel: 8, refeicao: 6 };
+  const ganhoImediato = GANHO_IMEDIATO[item.tipo] || 0;
+  const antesO = G.energia;
+  G.energia = Math.min(energiaCap(), G.energia + ganhoImediato);
+  const deltaO = G.energia - antesO;
+  if (item.saudeBonus) G.saude = Math.min(100, G.saude + item.saudeBonus);
+  if (item.moralBonus) G.moral = Math.min(100, G.moral + item.moralBonus);
+
+  inv[id]--; if (inv[id] <= 0) delete inv[id];
+  saveGame(false); updateTopBar(); renderEstoque();
+
+  const linhas = [];
+  if (deltaO > 0)      linhas.push(`⚡ +${deltaO} energia → ${G.energia}/${energiaCap()}`);
+  if (item.saudeBonus) linhas.push(`❤️ +${item.saudeBonus} saúde → ${G.saude}/100`);
+  if (item.moralBonus) linhas.push(`😊 +${item.moralBonus} moral → ${G.moral}/100`);
+  linhas.push(`\n🎒 Estoque: ${inv[id]||0}x restantes`);
+  showPopup({ icon: item.icon, titulo: `${item.nome} usado!`,
+    corpo: linhas.join('\n'),
+    botoes:[{ icon:'✔️', text:'Fechar', acao: closePopup }]
+  });
+}
+
+// Usar item direto do estoque (sem precisar ir à loja)
+function abrirEstoqueRapido() {
+  if (!G) return;
+  const inv = getInventario();
+  const itens = CONSUMIVEIS.filter(c => (inv[c.id]||0) > 0);
+
+  if (!itens.length) {
+    showPopup({
+      icon:'🎒', titulo:'Estoque Vazio',
+      corpo:'Você não tem consumíveis.\nCompre na aba Loja 🛍️',
+      botoes:[
+        { icon:'🛍️', text:'Ir à Loja', acao:()=>{ closePopup(); navTo('loja'); }},
+        { icon:'❌', text:'Fechar', acao: closePopup }
+      ]
+    });
+    return;
+  }
+
+  showPopup({
+    icon:'🎒', titulo:'Usar Consumível',
+    corpo:`Energia atual: ${G.energia}/${energiaCap()}
+Escolha o item:`,
+    botoes: [
+      ...itens.map(c => ({
+        icon: c.icon,
+        text: `${c.nome} (${inv[c.id]}x) — ${c.efeitoLabel}`,
+        acao: () => { closePopup(); usarItem(c.id); }
+      })),
+      { icon:'❌', text:'Fechar', acao: closePopup }
+    ]
+  });
+}
+
+// ─── SAVE / LOAD ─────────────────────────────────────────────
+
+function saveGame(toast=true) {
+  if(!G) return;
+  G.lastSave = Date.now();
+  G.versao   = SAVE_VERSION;
+  G.configSim = {...CONFIG_SIM};
+  const data = JSON.stringify(G);
+  try {
+    localStorage.setItem(SAVE_KEY, data);
+    DB.set('save', 'slot_principal', G).catch(()=>{});
+    // Backup automático apenas a cada 5 semanas (não sobrescreve constantemente)
+    const semana = G.semanaAtual || 1;
+    if (semana % 5 === 0) {
+      localStorage.setItem(SAVE_KEY+'_backup', data);
+    }
+    if(toast) showToast('💾 Jogo salvo!');
+  } catch(e) {
+    if(toast) showToast('⚠️ Erro ao salvar');
+  }
+}
+
+function saveGameSlot(slotName) {
+  if(!G) return;
+  G.lastSave = Date.now();
+  G.versao   = SAVE_VERSION;
+  G.configSim = {...CONFIG_SIM};
+  const data = JSON.stringify(G);
+  try {
+    localStorage.setItem(SAVE_KEY+'_slot_'+slotName, data);
+    DB.set('save', 'slot_'+slotName, G).catch(()=>{});
+    showToast('💾 Salvo no slot "'+slotName+'"!');
+  } catch(e) { showToast('⚠️ Erro ao salvar slot'); }
+}
+
+async function loadGame() {
+  try {
+    const dbSave = await DB.get('save', 'slot_principal');
+    if (dbSave?.nome) {
+      G = migrarSave(dbSave);
+      CONFIG_SIM = G.configSim && typeof G.configSim === 'object' ? G.configSim : CONFIG_SIM;
+      return true;
+    }
+  } catch(e) {}
+  // Tentar chave principal, depois backup, depois chaves legadas
+  const LEGACY_KEYS = ['futelife_v6','futelife_v5','futelife_v4','futelife_v3'];
+  const attempts = [SAVE_KEY, SAVE_KEY+'_backup', ...LEGACY_KEYS];
+  for (const key of attempts) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.nome) continue;
+      G = migrarSave(parsed);
+      // Se carregou de chave legada, migrar para chave principal
+      if (key !== SAVE_KEY) {
+        console.log('FuteLife: migrado save de', key, '→', SAVE_KEY);
+        localStorage.setItem(SAVE_KEY, JSON.stringify(G));
+      }
+      DB.set('save', 'slot_principal', G).catch(()=>{});
+      return true;
+    } catch(e) { continue; }
+  }
+  return false;
+}
+
+// Migrar save antigo para versão atual sem perder dados
+function migrarSave(save) {
+  save = save && typeof save === 'object' ? save : {};
+  // VISUAL-01: garantir contratoFim válido antes de qualquer uso
+  if (!save.contratoFim || isNaN(save.contratoFim) || save.contratoFim < (save.ano||2024)) {
+    save.contratoFim = (save.ano||2024) + (save.contrato?.anos||2);
+  }
+  // Garantir todos os campos novos com defaults seguros
+  const defaults = {
+    entrosamento: 30, jogosSeguidos: 0,
+    arquetipo: null, talentos: [], pontosArquetipo: 0,
+    emLesao: false, semanasLesao: 0, lesaoTipo: null, auge: false,
+    promessaEpoca: null, palestraUsada: false,
+    contrato: null, historico_contratos: [],
+    tipoAgente: save.temEmpresario ? 'amigo' : 'nenhum',
+    furos: [], objetivoAtivo: null,
+    statsPartida: { golsSofridos:0, defesas:0, tackles:0, rematesTotal:0, rematesToGol:0, cleanSheets:0 },
+    inventario: save.inventario || {},
+    _salarioPago: false,
+    lideranca: 5, compostura: 5,
+    buffReuniao: null,
+    reuniaoFeita: false,
+    moradia: 'simples',
+    carro: null,
+    familia: { estado:'solteiro', filhos:0 },
+    despesasSurpresa: [],
+    impostosPagos: 0,
+    ultimaDespesaSurpresaAno: null,
+    rumores: [],
+    semContratoDesde: null,
+    carreiraJogadorEncerrada: false,
+    historicoCarreira: [],
+    midia: { seguidores:0, entrevistas:0, patrocinios:[], redesEventos:[], ultimaAcaoSemana:null },
+    tabelaLiga: null,
+    resultadosLiga: {},
+    rodadaLigaSimulada: 0,
+    clubeStatus: { confiancaGrupo:55, apoioTorcida:55, apoioDiretoria:55, derrotasSeguidas:0, vitoriasSeguidas:0 },
+    taticaTreinador: { formacao:save.formacao||null, estilo:'equilibrado' },
+    elencoClube: [],
+    licencaTreinador: { nivel:'C', cursoAtivo:null, historicoCursos:[], ultimoPedidoSemana:null },
+    ultimoObjetivoDiretoriaCumprido: false,
+    orcamentoClube: 0,
+    mercadoTreinador: { chave:null, candidatos:[] },
+    movsPlantel: { chave:null, usados:0 },
+    configSim: { modo:'minha_liga', ligasAtivas:[] },
+  };
+  for (const [k, v] of Object.entries(defaults)) {
+    if (save[k] === undefined) save[k] = v;
+  }
+  // Integridade do save: atributos sempre numericos, conhecidos e dentro de 0..99.
+  const validAttrs = new Set([...Object.keys(ATTR_LABELS), ...ATTRS_TREINADOR.map(a => a.key)]);
+  const cleanAttrs = {};
+  const rawAttrs = save.attrs && typeof save.attrs === 'object' ? save.attrs : {};
+  Object.keys(rawAttrs).forEach(k => {
+    if (!validAttrs.has(k)) return;
+    const n = Number(rawAttrs[k]);
+    if (!Number.isFinite(n)) return;
+    cleanAttrs[k] = Math.min(99, Math.max(0, Math.round(n)));
+  });
+  save.attrs = cleanAttrs;
+  if (!MORADIAS.some(m => m.id === save.moradia)) save.moradia = 'simples';
+  if (save.carro && !CARROS.some(c => c.id === save.carro)) save.carro = null;
+  if (!save.familia || typeof save.familia !== 'object') {
+    save.familia = { estado: save.relacionamento || 'solteiro', filhos: save.filhos || 0 };
+  }
+  if (!['solteiro','namoro','casado'].includes(save.familia.estado)) save.familia.estado = 'solteiro';
+  save.familia.filhos = Math.max(0, Math.min(3, Math.round(Number(save.familia.filhos)||0)));
+  save.relacionamento = save.familia.estado === 'solteiro' ? null : save.familia.estado;
+  save.filhos = save.familia.filhos;
+  if (!Array.isArray(save.despesasSurpresa)) save.despesasSurpresa = [];
+  save.impostosPagos = Math.max(0, Math.round(Number(save.impostosPagos)||0));
+  if (!Array.isArray(save.rumores)) save.rumores = [];
+  if (!Array.isArray(save.historicoCarreira)) save.historicoCarreira = [];
+  if (!save.midia || typeof save.midia !== 'object') save.midia = { seguidores:0, entrevistas:0, patrocinios:[], redesEventos:[] };
+  save.midia.seguidores = Math.max(0, Math.round(Number(save.midia.seguidores)||0));
+  save.midia.entrevistas = Math.max(0, Math.round(Number(save.midia.entrevistas)||0));
+  if (!Array.isArray(save.midia.patrocinios)) save.midia.patrocinios = [];
+  if (!Array.isArray(save.midia.redesEventos)) save.midia.redesEventos = [];
+  save.midia.ultimaAcaoSemana = save.midia.ultimaAcaoSemana || null;
+  save.semContratoDesde = save.semContratoDesde || null;
+  save.carreiraJogadorEncerrada = !!save.carreiraJogadorEncerrada;
+  if (!save.resultadosLiga || typeof save.resultadosLiga !== 'object') save.resultadosLiga = {};
+  save.rodadaLigaSimulada = Math.max(0, Math.round(Number(save.rodadaLigaSimulada)||0));
+  if (!save.clubeStatus || typeof save.clubeStatus !== 'object') save.clubeStatus = { confiancaGrupo:55, apoioTorcida:55, apoioDiretoria:55, derrotasSeguidas:0, vitoriasSeguidas:0 };
+  save.clubeStatus.confiancaGrupo = Math.max(0, Math.min(100, Math.round(Number(save.clubeStatus.confiancaGrupo)||55)));
+  save.clubeStatus.apoioTorcida = Math.max(0, Math.min(100, Math.round(Number(save.clubeStatus.apoioTorcida)||55)));
+  save.clubeStatus.apoioDiretoria = Math.max(0, Math.min(100, Math.round(Number(save.clubeStatus.apoioDiretoria)||55)));
+  save.clubeStatus.derrotasSeguidas = Math.max(0, Math.round(Number(save.clubeStatus.derrotasSeguidas)||0));
+  save.clubeStatus.vitoriasSeguidas = Math.max(0, Math.round(Number(save.clubeStatus.vitoriasSeguidas)||0));
+  if (!save.taticaTreinador || typeof save.taticaTreinador !== 'object') save.taticaTreinador = { formacao:save.formacao||'4-3-3', estilo:'equilibrado' };
+  if (!FORMACOES_TREINADOR.includes(save.taticaTreinador.formacao)) save.taticaTreinador.formacao = save.formacao || '4-3-3';
+  if (!TATICAS_TREINADOR[save.taticaTreinador.estilo]) save.taticaTreinador.estilo = 'equilibrado';
+  save.formacao = save.taticaTreinador.formacao;
+  normalizarLicencaTreinador(save);
+  save.ultimoObjetivoDiretoriaCumprido = !!save.ultimoObjetivoDiretoriaCumprido;
+  if (!Array.isArray(save.elencoClube)) save.elencoClube = [];
+  if (save.perfil === 'treinador' && save.elencoClube.length < 16) {
+    const prevG = G;
+    G = save;
+    save.elencoClube = gerarElencoClubePersistente(save.clube, save.liga);
+    G = prevG;
+  }
+  if (!save.mercadoTreinador || typeof save.mercadoTreinador !== 'object') save.mercadoTreinador = { chave:null, candidatos:[] };
+  if (!Array.isArray(save.mercadoTreinador.candidatos)) save.mercadoTreinador.candidatos = [];
+  if (!save.movsPlantel || typeof save.movsPlantel !== 'object') save.movsPlantel = { chave:null, usados:0 };
+  save.movsPlantel.usados = Math.max(0, Math.min(3, Math.round(Number(save.movsPlantel.usados)||0)));
+  save.orcamentoClube = Math.max(0, Math.round(Number(save.orcamentoClube)||0));
+  if (!save.configSim || typeof save.configSim !== 'object') save.configSim = { modo:'minha_liga', ligasAtivas:[] };
+  if (!['minha_liga','selecionadas','todas'].includes(save.configSim.modo)) save.configSim.modo = 'minha_liga';
+  if (!Array.isArray(save.configSim.ligasAtivas)) save.configSim.ligasAtivas = [];
+  if (save.perfil === 'treinador') {
+    const prevG = G;
+    G = save;
+    normalizarElencoClube(false);
+    if (!save.orcamentoClube) save.orcamentoClube = calcularOrcamentoClube();
+    save.ovr = calcularOVRTreinador(save);
+    G = prevG;
+  }
+  if (save.tipoContrato === 'livre') {
+    save.contrato = null;
+    save.salario = 0;
+    save.clube = save.clube || 'Passe Livre';
+    save.liga = save.liga || 'Sem Liga';
+  }
+  // Contrato: criar se não existir
+  if (!save.contrato && save.clube && save.tipoContrato !== 'livre') {
+    save.contrato = {
+      clube: save.clube, liga: save.liga || '',
+      salario: save.salario || 0,
+      anos: Math.max(1, (save.contratoFim||0) - (save.ano||2024)),
+      bonusGol:    Math.round((save.salario||0)*0.08),
+      bonusAssist: Math.round((save.salario||0)*0.05),
+      clausula: (save.salario||0) * 52 * 3,
+      paciencia: 3,
+    };
+  }
+  save.versao = SAVE_VERSION;
+  return save;
+}
+
+function listSaveSlots() {
+  const slots = [];
+  // Principal + backup
+  ['', '_backup'].forEach(suffix => {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY + suffix);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (!s?.nome) return;
+      const label = suffix === '' ? 'Save Principal' : 'Backup automático';
+      const dt = s.lastSave ? new Date(s.lastSave).toLocaleString('pt-BR') : '—';
+      slots.push({ key: SAVE_KEY+suffix, label, nome:s.nome, clube:s.clube, ano:s.ano, dt, data:s });
+    } catch(e){}
+  });
+  // Slots nomeados
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k?.startsWith(SAVE_KEY+'_slot_')) continue;
+    try {
+      const s = JSON.parse(localStorage.getItem(k));
+      if (!s?.nome) continue;
+      const label = 'Slot: '+k.replace(SAVE_KEY+'_slot_','');
+      const dt = s.lastSave ? new Date(s.lastSave).toLocaleString('pt-BR') : '—';
+      slots.push({ key:k, label, nome:s.nome, clube:s.clube, ano:s.ano, dt, data:s });
+    } catch(e){}
+  }
+  return slots;
+}
+
+function abrirMenuSaves() {
+  const slots = listSaveSlots();
+  if (!slots.length) { showToast('📂 Nenhum save encontrado.'); return; }
+  showPopup({
+    icon:'💾', titulo:'Carregar Save',
+    corpo:'Escolha um save para carregar:\n(Seu jogo atual não será perdido automaticamente)',
+    botoes: [
+      ...slots.map(s => ({
+        icon:'📂',
+        text: s.label+' · '+s.nome+' · '+s.clube+' · '+s.ano+'\n'+s.dt,
+        acao: () => { closePopup(); carregarSlot(s.key); }
+      })),
+      { icon:'❌', text:'Cancelar', acao: closePopup }
+    ]
+  });
+}
+
+function carregarSlot(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) { showToast('❌ Save não encontrado.'); return; }
+    const parsed = JSON.parse(raw);
+    if (!parsed?.nome) { showToast('❌ Save corrompido.'); return; }
+    G = migrarSave(parsed);
+    launchGame();
+    showToast('✅ Save carregado: '+G.nome+' · '+G.clube);
+  } catch(e) { showToast('❌ Erro ao carregar: '+e.message); }
+}
+
+
+function abrirSalvarSlot() {
+  // Usar showPopup com opções pré-definidas + personalizado
+  showPopup({
+    icon:'📁', titulo:'Salvar Slot',
+    corpo:'Escolha um nome para o slot de save:\n(Slots existentes serão sobrescritos se tiverem o mesmo nome)',
+    botoes:[
+      { icon:'🔵', text:'pre-transferencia', acao:()=>{ closePopup(); saveGameSlot('pre-transferencia'); } },
+      { icon:'🟡', text:'auge-carreira',     acao:()=>{ closePopup(); saveGameSlot('auge-carreira'); } },
+      { icon:'🟢', text:'temporada-'+((G?.ano)||2024), acao:()=>{ closePopup(); saveGameSlot('temporada-'+((G?.ano)||2024)); } },
+      { icon:'🔴', text:'seguranca',         acao:()=>{ closePopup(); saveGameSlot('seguranca'); } },
+      { icon:'❌', text:'Cancelar',           acao: closePopup },
+    ]
+  });
+}
+
+async function coletarStatesExport() {
+  const stores = ['jogadores_state','clubes_state','staff_state','ligas_state','copas_state'];
+  const out = {};
+  for (const store of stores) {
+    out[store] = await DB.getAll(store).catch(()=>[]);
+  }
+  return out;
+}
+
+async function exportarSave() {
+  if (!G) return;
+  G.lastSave = Date.now();
+  G.configSim = {...CONFIG_SIM};
+  const states = await DB.getAll('ligas_state').catch(()=>Object.keys(GLOBAL_STATES).map(k=>({key:k, valor:GLOBAL_STATES[k]})));
+  const statesByStore = await coletarStatesExport();
+  const baseMeta = await DB.get('base_meta','world').catch(()=>null);
+  const data = JSON.stringify({ tipo:'futelife_export_v15', save:G, config:CONFIG_SIM, states:states.map(s=>s.valor), statesByStore, baseVersion:baseMeta?.version || WORLD_MANIFEST?.version || '2026_world_v1' });
+  // Copiar para clipboard
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(data).then(()=>{
+      showToast('📤 Save copiado! Cole em um bloco de notas para guardar.');
+    }).catch(()=>_exportFallback(data));
+  } else { _exportFallback(data); }
+}
+
+function _exportFallback(data) {
+  // Fallback: mostrar em popup para o user copiar manualmente
+  showPopup({
+    icon:'📤', titulo:'Exportar Save',
+    corpo:'Não foi possível copiar automaticamente.\n\nAbra o Console do navegador (F12) e execute:\n\n  localStorage.getItem("futelife_save")\n\nOu clique em OK e o jogo tentará abrir uma janela de texto.',
+    botoes:[
+      { icon:'✔️', text:'Fechar', acao: closePopup }
+    ]
+  });
+}
+
+function importarSave() {
+  const raw = prompt('Cole seu save exportado aqui:');
+  if (!raw || !raw.trim()) return;
+  try {
+    const parsed = JSON.parse(raw.trim());
+    const pacote = (parsed?.tipo === 'futelife_export_v15' || parsed?.tipo === 'futelife_export_v12') ? parsed : null;
+    const saveImportado = pacote ? pacote.save : parsed;
+    if (!saveImportado?.nome) { showToast('❌ Dados inválidos.'); return; }
+    showPopup({
+      icon:'📥', titulo:'Importar Save',
+      corpo:'Save de '+saveImportado.nome+' ('+saveImportado.clube+', '+saveImportado.ano+') encontrado.\n\nIsso vai SUBSTITUIR seu jogo atual. Tem certeza?',
+      botoes:[
+        { icon:'✅', text:'Importar', acao:async ()=>{
+          closePopup();
+          G = migrarSave(saveImportado);
+          if (pacote?.config) { CONFIG_SIM = pacote.config; await salvarConfigSim(); }
+          if (Array.isArray(pacote?.states)) {
+            pacote.states.forEach(st => { if (st?.id) { GLOBAL_STATES[st.id] = st; DB.set('ligas_state', st.id, st).catch(()=>{}); } });
+          }
+          if (pacote?.statesByStore && typeof pacote.statesByStore === 'object') {
+            for (const [store, items] of Object.entries(pacote.statesByStore)) {
+              if (!store.endsWith('_state') || !Array.isArray(items)) continue;
+              for (const item of items) {
+                const key = item?.key || item?.valor?.id;
+                if (key) DB.set(store, key, item.valor).catch(()=>{});
+              }
+            }
+          }
+          saveGame(false);
+          launchGame();
+          showToast('✅ Save importado: '+G.nome);
+        }},
+        { icon:'❌', text:'Cancelar', acao: closePopup }
+      ]
+    });
+  } catch(e) { showToast('❌ Formato inválido: '+e.message); }
+}
+
+function confirmReset() {
+  showPopup({ icon:'⚠️', titulo:'Recomeçar?', corpo:'Isso apagará seu save permanentemente.',
+    botoes:[
+      {icon:'🗑️',text:'Sim, apagar tudo',acao:async ()=>{
+        // Apagar save principal, backup e todos os slots nomeados
+        localStorage.removeItem(SAVE_KEY);
+        localStorage.removeItem(SAVE_KEY+'_backup');
+        // Apagar todos os slots
+        const toDelete = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(SAVE_KEY+'_slot_')) toDelete.push(k);
+        }
+        toDelete.forEach(k => localStorage.removeItem(k));
+        await DB.clear('save').catch(()=>{});
+        for (const store of ['jogadores_state','clubes_state','staff_state','ligas_state','copas_state']) {
+          await DB.clear(store).catch(()=>{});
+        }
+        await DB.clear('config_sim').catch(()=>{});
+        location.reload();
+      }},
+      {icon:'❌',text:'Cancelar',acao:closePopup}
+    ]
+  });
+}
+
+// ─── TOAST ───────────────────────────────────────────────────
+
+let _tt=null;
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  if(_tt) clearTimeout(_tt);
+  _tt=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// ─── UTILS ───────────────────────────────────────────────────
+
+function rng(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function pickRandom(arr){ return arr[rng(0,arr.length-1)]; }
+function fmtMoney(v){ if(v>=1e6)return'R$'+(v/1e6).toFixed(1)+'M'; if(v>=1000)return'R$'+(v/1000).toFixed(0)+'k'; return'R$'+v; }
+function fmtSalarioDual(v){
+  const sem = Math.max(0, Math.round(Number(v)||0));
+  return fmtMoney(sem)+'/sem · '+fmtMoney(sem*4)+'/mes';
+}
+function addNoticia(s,icon,texto){
+  if (!s) return;
+  if (!Array.isArray(s.noticias)) s.noticias = [];
+  const safeTexto = (texto === undefined || texto === null || texto === '') ? 'Noticia do clube atualizada.' : String(texto);
+  s.noticias.push({icon:icon||'INFO',texto:safeTexto,semana:s.semanaAtual||1,ano:s.ano||2024});
+}
+
+// ─── BOOT ─── (BUG FIX PRINCIPAL)
+// A tela de criação só aparece quando NÃO há save no localStorage.
+// Com save: launchGame() chama screen-create com display:none antes de tudo.
+
+function launchGame() {
+  const createEl = document.getElementById('screen-create');
+  createEl.style.display = 'none';
+  createEl.classList.remove('active');
+
+  // Recalculate OVR on load (in case of old saves)
+  if (G.perfil === 'jogador') refreshOVR();
+  // Garantir energia dentro do cap actual ao carregar
+  if (G.energia > energiaCap()) G.energia = energiaCap();
+
+  document.getElementById('top-bar').classList.add('visible');
+  document.getElementById('bottom-nav').classList.add('visible');
+  document.getElementById('top-avatar').textContent = G.perfil==='treinador'?'🧢':'⚽';
+  updateTopBar();
+  populateAttrsGrid();
+  populateProfileScreen();
+  navTo('home');
+}
+
+(async function boot() {
+  // ── Console OVR tests ──────────────────────────────────────
+  const testATA = { posicao:'CF', grupoPos:'ATA', attrs:{ finalizacao:90, drible:85, velocidade:88, aceleracao:86, controleBola:82, posicao:80, reacoes:84, chuteLongo:78, forca:72, curva:80, cabecio:70, passeCurto:74, passeLongo:65, cruzamento:60, agilidade:85, resistencia:75, salto:70, tackle:40 } };
+  const testZAG = { posicao:'CB', grupoPos:'DEF', attrs:{ tackle:72, cabecio:70, forca:74, posicao:68, salto:73, resistencia:71, velocidade:65, aceleracao:62, passeLongo:60, passeCurto:58, drible:40, finalizacao:30, curva:28, chuteLongo:35, cruzamento:30, agilidade:60, controleBola:50, reacoes:64 } };
+  const testGK  = { posicao:'GOL', grupoPos:'GOL', attrs:{ diving:85, handling:82, reflexosGK:88, posicaoGK:80, chutaGK:60, velocidadeGK:70, forca:68, salto:78, resistencia:72, agilidade:74, reacoes:86, posicao:75 } };
+  // OVR self-test removido de produção (BUG-20)
+  // ──────────────────────────────────────────────────────────
+
+  try {
+    mostrarBootLoading('Carregando FuteLife...');
+    await carregarAssetsOpcionais();
+    await inicializarMundoGlobal();
+    if (await loadGame()) launchGame();
+    else {
+      document.getElementById('screen-create').classList.add('active');
+      aplicarAssetsVisuais();
+    }
+  } finally {
+    ocultarBootLoading();
+  }
+})();
+</script>
+</body>
+</html>

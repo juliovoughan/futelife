@@ -1,0 +1,615 @@
+
+function gerarEventoMidia() {
+  if (Math.random() < 0.55) abrirEntrevistaMidia(true);
+  else gerarEventoRedeSocial(true);
+}
+
+
+
+// ─── MODO TREINADOR ─────────────────────────────────────────
+
+function proximoAdversarioClubeTabela(clube) {
+  if (!G || !clube) return '--';
+  if (clube === G.clube) return getProxPartida()?.adversario || '--';
+  const t = initTabelaLiga(false);
+  const inicio = Math.max((t?.rodadaAtual||0) + 1, G.rodada||1);
+  const max = Math.min(inicio + 5, 38);
+  for (let rodada = inicio; rodada <= max; rodada++) {
+    const jogo = gerarParesRodadaLiga(rodada).find(p => p.home === clube || p.away === clube);
+    if (jogo) return jogo.home === clube ? jogo.away : jogo.home;
+  }
+  return '--';
+}
+
+function tabelaLigaHtml(limit = 14) {
+  const rows = ordenarTabelaLiga().slice(0, limit);
+  if (!rows.length) return '<div class="empty-notice">Tabela ainda sem jogos.</div>';
+  return '<div class="league-table-wrap"><table class="league-table">'+
+    '<thead><tr><th>#</th><th>Clube</th><th>Pts</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th><th>Proximo</th></tr></thead><tbody>'+
+    rows.map((r, i) => '<tr class="'+(r.clube===G.clube?'my-row':'')+'">'+
+      '<td>'+(i+1)+'</td>'+
+      '<td class="club-cell">'+r.clube+'</td>'+
+      '<td>'+r.pts+'</td>'+
+      '<td>'+r.j+'</td>'+
+      '<td>'+r.g+'</td>'+
+      '<td>'+r.e+'</td>'+
+      '<td>'+r.d+'</td>'+
+      '<td>'+r.sg+'</td>'+
+      '<td class="next-cell">'+proximoAdversarioClubeTabela(r.clube)+'</td>'+
+    '</tr>').join('')+
+    '</tbody></table></div>';
+}
+
+function openTabelaLiga() {
+  initTabelaLiga(false);
+  const pos = getPosicaoClubeTabela();
+  const status = G.clubeStatus || {};
+  const prox = getProxPartida();
+  showPopup({
+    icon:'TAB',
+    titulo:'Tabela da Liga',
+    corpo:'<div class="asset-popup-text">'+(G.liga||'Liga')+' - '+(G.ano||'')+'</div>'+
+      '<div class="league-summary">'+
+        '<div class="league-chip"><b>'+(pos ? pos+'o' : '--')+'</b><span>Posicao</span></div>'+
+        '<div class="league-chip"><b>'+Math.round(status.apoioDiretoria||55)+'</b><span>Diretoria</span></div>'+
+        '<div class="league-chip"><b>'+(prox?.adversario||'--')+'</b><span>Proximo</span></div>'+
+      '</div>'+
+      '<div class="asset-popup-text">Grupo '+Math.round(status.confiancaGrupo||55)+'/100 | Torcida '+Math.round(status.apoioTorcida||55)+'/100</div>'+
+      tabelaLigaHtml(14),
+    botoes:[{icon:'OK', text:'Fechar', acao:closePopup}]
+  });
+}
+
+function openConfigSimGlobal() {
+  const modo = CONFIG_SIM.modo || 'minha_liga';
+  const ligas = Object.values(GLOBAL_BASES);
+  const ativas = new Set(CONFIG_SIM.ligasAtivas || []);
+  const linhas = ligas.map(l => (ativas.has(l.id)?'[x] ':'[ ] ')+l.nome+' ('+l.clubes.length+' clubes)').join('\n');
+  const corpo = 'Modo atual: '+(modo==='todas'?'Todas as ligas':modo==='selecionadas'?'Ligas selecionadas':'So minha liga')+
+    '\nLiga da carreira: '+(G?.liga||'--')+
+    '\nSelecionadas: '+ativas.size+'/'+ligas.length+
+    '\n\nSelecionadas:\n'+(linhas || 'Database ainda carregando.');
+  const botoes = [
+    { icon:'1', text:'So minha liga', acao:()=>setModoSimGlobal('minha_liga') },
+    { icon:'SEL', text:'Ligas selecionadas', acao:()=>setModoSimGlobal('selecionadas') },
+    { icon:'ALL', text:'Todas as 6 ligas', acao:()=>setModoSimGlobal('todas') },
+    { icon:'ON', text:'Selecionar todas', acao:()=>selecionarTodasLigasSimGlobal() },
+    { icon:'OFF', text:'Limpar selecao', acao:()=>limparLigasSimGlobal() },
+    ...ligas.slice(0,6).map(l => ({ icon:ativas.has(l.id)?'ON':'OFF', text:(ativas.has(l.id)?'Remover ':'Adicionar ')+l.nome, acao:()=>toggleLigaSimGlobal(l.id) })),
+    { icon:'OK', text:'Fechar', acao:closePopup }
+  ];
+  showPopup({ icon:'GLO', titulo:'Simulacao Global', corpo, botoes });
+}
+
+function setModoSimGlobal(modo) {
+  CONFIG_SIM.modo = modo;
+  if (modo === 'todas') CONFIG_SIM.ligasAtivas = Object.keys(GLOBAL_BASES);
+  salvarConfigSim();
+  closePopup();
+  openConfigSimGlobal();
+}
+
+function selecionarTodasLigasSimGlobal() {
+  CONFIG_SIM.modo = 'selecionadas';
+  CONFIG_SIM.ligasAtivas = Object.keys(GLOBAL_BASES);
+  salvarConfigSim();
+  closePopup();
+  openConfigSimGlobal();
+}
+
+function limparLigasSimGlobal() {
+  CONFIG_SIM.modo = 'selecionadas';
+  CONFIG_SIM.ligasAtivas = [];
+  salvarConfigSim();
+  closePopup();
+  openConfigSimGlobal();
+}
+
+function toggleLigaSimGlobal(id) {
+  const set = new Set(CONFIG_SIM.ligasAtivas || []);
+  if (set.has(id)) set.delete(id); else set.add(id);
+  CONFIG_SIM.ligasAtivas = [...set];
+  CONFIG_SIM.modo = 'selecionadas';
+  salvarConfigSim();
+  closePopup();
+  openConfigSimGlobal();
+}
+
+function gerarObjetivoDiretoriaTemporada() {
+  if (!G || G.perfil !== 'treinador' || G.promessaEpoca) return;
+  initTabelaLiga(false);
+  const ovr = clubeOvrEstimado(G.clube);
+  let meta = 'Terminar na metade superior';
+  if (ovr >= 78) meta = 'Ganhar o titulo';
+  else if (ovr >= 72) meta = 'Top 3 no campeonato';
+  else if (ovr <= 63) meta = 'Evitar rebaixamento';
+  G.promessaEpoca = { meta, prazoAno:G.ano, cumprida:false, auto:true };
+}
+
+function avaliarObjetivoDiretoriaFimTemporada() {
+  if (!G || G.perfil !== 'treinador') return;
+  const p = G.promessaEpoca;
+  if (!p) return;
+  const status = objetivoDiretoriaTexto();
+  p.cumprida = status === 'cumprido';
+  G.ultimoObjetivoDiretoriaCumprido = p.cumprida;
+  if (p.cumprida) {
+    ajustarStatusClube(8, 8, 12);
+    G.fama = Math.min(100, G.fama + 5);
+    G.moral = Math.min(100, G.moral + 8);
+    addNoticia(G,'OK','Objetivo da diretoria cumprido: '+p.meta+'.');
+  } else {
+    ajustarStatusClube(-12, -12, -22);
+    G.fama = Math.max(0, G.fama - 10);
+    G.moral = Math.max(0, G.moral - 14);
+    addNoticia(G,'DIR','Objetivo da diretoria falhou: '+p.meta+'.');
+    if ((G.clubeStatus?.apoioDiretoria||0) < 25) demitirTreinador('objetivos nao cumpridos');
+  }
+  G.promessaEpoca = null;
+}
+
+function demitirTreinador(motivo = 'pressao interna') {
+  if (!G || G.perfil !== 'treinador') return;
+  const clubes = [...(LIGAS[G.liga]?.clubes || CLUBES_PEQUENOS)].filter(c => c && c !== G.clube);
+  const destino = clubes.slice(-6)[rng(0, Math.max(0, Math.min(5, clubes.length-1)))] || pickRandom(CLUBES_PEQUENOS);
+  const antigo = G.clube;
+  G.clube = destino;
+  G.fama = Math.max(0, G.fama - 8);
+  G.moral = Math.max(20, G.moral - 10);
+  G.clubeStatus = { confiancaGrupo:48, apoioTorcida:45, apoioDiretoria:50, derrotasSeguidas:0, vitoriasSeguidas:0 };
+  G.taticaTreinador = { formacao:'4-3-3', estilo:'equilibrado' };
+  G.elencoClube = gerarElencoClubePersistente(G.clube, G.liga);
+  G.orcamentoClube = calcularOrcamentoClube();
+  G.mercadoTreinador = { chave:null, candidatos:[] };
+  G.movsPlantel = { chave:null, usados:0 };
+  initTabelaLiga(true);
+  addNoticia(G,'DIR',`Demitido do ${antigo} por ${motivo}. Novo desafio: ${destino}.`);
+}
+
+const TATICAS_TREINADOR = {
+  equilibrado: { nome:'Equilibrado', desc:'Sem extremos. Mantem o time estavel.', mods:{ ataque:0.4, meio:0.4, defesa:0.4 }, energiaDrain:1.00 },
+  pressao_alta:{ nome:'Pressao alta', desc:'Mais agressivo e cansativo.', mods:{ ataque:1.3, meio:0.7, defesa:-0.3 }, energiaDrain:1.35 },
+  bloco_baixo: { nome:'Bloco baixo', desc:'Protege a defesa e reduz risco.', mods:{ ataque:-0.4, meio:0.2, defesa:1.5 }, energiaDrain:0.78 },
+  posse:       { nome:'Posse', desc:'Controla o meio e cria volume.', mods:{ ataque:0.5, meio:1.3, defesa:0.3 }, energiaDrain:1.08 },
+  transicao:   { nome:'Transicao', desc:'Explora contra-ataques.', mods:{ ataque:1.0, meio:0.5, defesa:0.1 }, energiaDrain:1.15 }
+};
+const FORMACOES_TREINADOR = ['4-3-3','4-4-2','4-2-3-1','3-5-2','5-3-2'];
+
+function normalizarTaticaTreinador() {
+  if (!G.taticaTreinador || typeof G.taticaTreinador !== 'object') G.taticaTreinador = { formacao:G.formacao||'4-3-3', estilo:'equilibrado' };
+  if (!FORMACOES_TREINADOR.includes(G.taticaTreinador.formacao)) G.taticaTreinador.formacao = G.formacao || '4-3-3';
+  if (!TATICAS_TREINADOR[G.taticaTreinador.estilo]) G.taticaTreinador.estilo = 'equilibrado';
+  G.formacao = G.taticaTreinador.formacao;
+}
+
+function setEstiloTreinador(estilo) {
+  normalizarTaticaTreinador();
+  if (!TATICAS_TREINADOR[estilo]) return;
+  G.taticaTreinador.estilo = estilo;
+  saveGame();
+  closePopup();
+  setTimeout(openTaticaTreinador, 0);
+}
+
+function setFormacaoTreinador(formacao) {
+  normalizarTaticaTreinador();
+  if (!FORMACOES_TREINADOR.includes(formacao)) return;
+  G.taticaTreinador.formacao = formacao;
+  G.formacao = formacao;
+  saveGame();
+  closePopup();
+  setTimeout(openTaticaTreinador, 0);
+}
+
+function openTaticaTreinador() {
+  if (!G || G.perfil !== 'treinador') { showToast('Tatica avancada disponivel no modo treinador.'); return; }
+  normalizarTaticaTreinador();
+  const atual = TATICAS_TREINADOR[G.taticaTreinador.estilo];
+  const botoes = [
+    ...FORMACOES_TREINADOR.map(f => ({ icon:f===G.taticaTreinador.formacao?'OK':'FOR', text:f, acao:()=>setFormacaoTreinador(f) })),
+    ...Object.keys(TATICAS_TREINADOR).map(k => ({ icon:k===G.taticaTreinador.estilo?'OK':'TAC', text:TATICAS_TREINADOR[k].nome, acao:()=>setEstiloTreinador(k) })),
+    { icon:'OK', text:'Fechar', acao:()=>{ window._popupQueue = []; closePopup(); } }
+  ];
+  showPopup({
+    icon:'TAC',
+    titulo:'Tatica do Treinador',
+    corpo:'Formacao: '+G.taticaTreinador.formacao+
+      '\nEstilo: '+atual.nome+
+      '\n\n'+atual.desc+
+      '\nEnergia: x'+atual.energiaDrain.toFixed(2)+
+      '\nMods: A '+atual.mods.ataque+' / M '+atual.mods.meio+' / D '+atual.mods.defesa,
+    botoes
+  });
+}
+
+function aplicarTaticaTreinador() {
+  if (!MS || !G || G.perfil !== 'treinador') return;
+  normalizarTaticaTreinador();
+  const t = TATICAS_TREINADOR[G.taticaTreinador.estilo] || TATICAS_TREINADOR.equilibrado;
+  addMatchMod('ataque', t.mods.ataque || 0, 'tatica treinador');
+  addMatchMod('meio', t.mods.meio || 0, 'tatica treinador');
+  addMatchMod('defesa', t.mods.defesa || 0, 'tatica treinador');
+  MS._taticaEnergiaMult = t.energiaDrain || 1;
+  MS._taticaAplicada = true;
+  logMatch('Tatica: '+G.taticaTreinador.formacao+' / '+t.nome+'.', 'hl');
+}
+
+function palestraIntervalo() {
+  if (!G || G.perfil !== 'treinador') return;
+  if (G.palestraUsada) { showToast('⚠️ Palestra já usada nesta partida.'); return; }
+  if (!MS || MS.min < 40) { showToast('⚠️ Palestra disponível apenas no intervalo (40\'+ ).'); return; }
+  MS.paused = true;
+  const btn = document.getElementById('btn-pause');
+  if (btn) { btn.textContent = '▶ Continuar'; btn.classList.add('paused'); }
+  clearTimeout(_matchTimer);
+  showPopup({
+    icon:'🎙️', titulo:'Palestra de Intervalo',
+    corpo:''+MS.home+' '+MS.hs+' × '+MS.as+' '+MS.away+'\n\nComo você fala com o time no intervalo?',
+    botoes:[
+      { icon:'🔥', text:'Agressivo — "Pressão máxima!"', acao:()=>{
+        closePopup();
+        MS.matchDiff.golChanceBonus = (MS.matchDiff.golChanceBonus||0) + 15;
+        MS.matchDiff.defBonus = (MS.matchDiff.defBonus||0) - 5;
+        G.palestraUsada=true; G.moral=Math.min(100,G.moral+3);
+        logMatch('🔥 Palestra agressiva! Time parte para o ataque na 2ª parte.','hl');
+        MS.paused=false; if(btn){btn.textContent='⏸ Pause';btn.classList.remove('paused');}
+        scheduleNextTick(800);
+      }},
+      { icon:'💪', text:'Motivador — "Acreditamos em vocês!"', acao:()=>{
+        closePopup();
+        MS.matchDiff.golChanceBonus = (MS.matchDiff.golChanceBonus||0) + 8;
+        MS.matchDiff.defBonus = (MS.matchDiff.defBonus||0) + 8;
+        G.palestraUsada=true; G.moral=Math.min(100,G.moral+8);
+        logMatch('💪 Palestra motivacional! Equipa entra na 2ª parte com confiança.','hl');
+        MS.paused=false; if(btn){btn.textContent='⏸ Pause';btn.classList.remove('paused');}
+        scheduleNextTick(800);
+      }},
+      { icon:'🧠', text:'Tático — "Pressing alto no meio"', acao:()=>{
+        closePopup();
+        MS.matchDiff.defBonus = (MS.matchDiff.defBonus||0) + 18;
+        G.palestraUsada=true; G.moral=Math.min(100,G.moral+2);
+        logMatch('🧠 Ajustes táticos no intervalo! Defesa mais sólida na 2ª parte.','hl');
+        MS.paused=false; if(btn){btn.textContent='⏸ Pause';btn.classList.remove('paused');}
+        scheduleNextTick(800);
+      }}
+    ]
+  });
+}
+
+function fazerPromessaDiretoria() {
+  if (!G || G.perfil !== 'treinador') return;
+  if (G.promessaEpoca) {
+    const p = G.promessaEpoca;
+    showPopup({
+      icon:'🤝', titulo:'Promessa Ativa',
+      corpo:'Meta: '+p.meta+'\nPrazo: Final de '+p.prazoAno+'\n\n'+
+        (p.cumprida?'✅ Cumprida!':'⏳ Em andamento. Cuidado — não cumprir custa Fama e Moral!'),
+      botoes:[{icon:'✔️', text:'Fechar', acao:closePopup}]
+    });
+    return;
+  }
+  showPopup({
+    icon:'🤝', titulo:'Promessa à Diretoria',
+    corpo:'O que você promete para esta temporada?\n\nAtenção: não cumprir custa -15 Fama e -20 Moral!',
+    botoes:[
+      { icon:'🏆', text:'Top 3 do campeonato', acao:()=>{
+        G.promessaEpoca={meta:'Top 3 no campeonato',prazoAno:G.ano,cumprida:false};
+        closePopup(); showToast('🤝 Promessa feita! A diretoria espera muito.');
+        addNoticia(G,'🤝',G.nome+' prometeu Top 3 à diretoria para '+G.ano+'.');
+      }},
+      { icon:'📈', text:'Evitar rebaixamento', acao:()=>{
+        G.promessaEpoca={meta:'Evitar rebaixamento',prazoAno:G.ano,cumprida:false};
+        closePopup(); showToast('🤝 Meta conservadora definida.');
+        addNoticia(G,'🤝',G.nome+' prometeu evitar o rebaixamento em '+G.ano+'.');
+      }},
+      { icon:'👑', text:'Ganhar o título', acao:()=>{
+        G.promessaEpoca={meta:'Ganhar o título',prazoAno:G.ano,cumprida:false};
+        G.fama = Math.min(100,G.fama+3); // ganhar fama por audácia
+        closePopup(); showToast('👑 Promessa ambiciosa! +3 Fama pela audácia.');
+        addNoticia(G,'👑',G.nome+' prometeu o TÍTULO à diretoria! Audacioso.');
+      }}
+    ]
+  });
+}
+
+
+// ─── NEGOCIAÇÃO DE CONTRATOS ─────────────────────────────────
+
+let _negocAtual = null; // proposta em negociação
+
+function iniciarNegociacao(proposta, fromObjetivo) {
+  if (!proposta) return;
+  _negocAtual = { ...proposta, fromObjetivo };
+  renderNegociacao(_negocAtual);
+}
+
+function renderNegociacao(p) {
+  // Remover modal anterior
+  let el = document.getElementById('negoc-overlay');
+  if (el) el.remove();
+
+  const pac = p.paciencia;
+  const pacPct = (pac/3)*100;
+  const agente = AGENTES[G.tipoAgente||'nenhum'];
+  const comissao = Math.round(p.salario * agente.comissao * 52);
+
+  const html = `
+  <div id="negoc-overlay" class="negoc-overlay" onclick="">
+    <div class="negoc-modal">
+      <div class="negoc-header">📋 Proposta: ${p.clube}</div>
+      <div class="negoc-sub">${p.liga}${p.motivoAgente?' · '+p.motivoAgente:''}</div>
+      <div class="negoc-paciencia"><div class="negoc-pac-fill" style="width:${pacPct}%"></div></div>
+      <div style="font-size:10.5px;color:var(--text2);margin-bottom:10px">⚡ Paciência do clube: ${pac}/3</div>
+      <div class="negoc-oferta-grid">
+        <div class="negoc-item"><div class="ni-lbl">💰 Salário</div><div class="ni-val">${fmtSalarioDual(p.salario)}</div></div>
+        <div class="negoc-item"><div class="ni-lbl">📅 Duração</div><div class="ni-val">${p.anos} ano${p.anos>1?'s':''}</div></div>
+        <div class="negoc-item"><div class="ni-lbl">⚽ Bônus/gol</div><div class="ni-val">${fmtMoney(p.bonusGol)}</div></div>
+        <div class="negoc-item"><div class="ni-lbl">🎯 Bônus/assist</div><div class="ni-val">${fmtMoney(p.bonusAssist)}</div></div>
+        <div class="negoc-item"><div class="ni-lbl">🔒 Cláusula</div><div class="ni-val">${fmtMoney(p.clausula)}</div></div>
+        ${agente.comissao>0?`<div class="negoc-item"><div class="ni-lbl">🤝 Comissão (1x assinatura)</div><div class="ni-val">-${fmtMoney(Math.round(p.salario*agente.comissao*4))}</div></div>`:''}
+      </div>
+      <div class="negoc-btns">
+        <button class="negoc-btn green" onclick="aceitarContrato()">✅ Aceitar proposta</button>
+        <button class="negoc-btn gold"  onclick="abrirContraproposta()">🔀 Contraproposta</button>
+        <button class="negoc-btn red"   onclick="recusarProposta()">❌ Recusar</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function fecharNegociacao() {
+  const ov = document.getElementById('popup-overlay');
+  if (ov) ov.classList.remove('active');
+  const el = document.getElementById('negoc-overlay');
+  if (el) el.remove();
+  _negocAtual = null;
+}
+
+function aceitarContrato() {
+  if (!_negocAtual) return;
+  const p = _negocAtual;
+  const eraOutroClube = p.clube !== G.clube;
+
+  // Comissão do agente: paga só uma vez, sobre 1 mês de salário (não o ano todo)
+  // Isso evita dívida imediata de centenas de milhares
+  const agente = AGENTES[G.tipoAgente||'nenhum'];
+  const comissaoUnica = Math.round(p.salario * agente.comissao * 4); // 4 semanas
+  if (comissaoUnica > 0) {
+    if (G.dinheiro < comissaoUnica) {
+      showToast('Comissao do agente insuficiente: precisa de '+fmtMoney(comissaoUnica));
+      return;
+    }
+    showToast('Comissao do agente: -'+fmtMoney(comissaoUnica));
+    G.dinheiro -= comissaoUnica;
+    updateTopBar();
+  }
+  // Registrar contrato
+  if (G.contrato) G.historico_contratos.push(G.contrato);
+  G.contrato = { ...p };
+  G.salario   = p.salario;
+  G.contratoFim = G.ano + p.anos;
+  G.tipoContrato = p.tipo || (G.perfil === 'treinador' ? 'treinador' : 'principal');
+  G.semContratoDesde = null;
+  // Transferência
+  if (eraOutroClube) {
+    const clubeAntigo = G.clube;
+    G.clube = p.clube; G.liga = p.liga;
+    G.jogosSeguidos = 0; G.entrosamento = Math.max(20, (G.entrosamento||30)-20);
+    G.objetivoAtivo = null;
+    G.rodadaLigaSimulada = 0;
+    G.resultadosLiga = {};
+    G.tabelaLiga = null;
+    G.clubeStatus = { confiancaGrupo:55, apoioTorcida:55, apoioDiretoria:55, derrotasSeguidas:0, vitoriasSeguidas:0 };
+    if (G.perfil === 'treinador') {
+      normalizarLicencaTreinador();
+      G.elencoClube = gerarElencoClubePersistente(G.clube, G.liga);
+      G.orcamentoClube = calcularOrcamentoClube();
+      G.mercadoTreinador = { chave:null, candidatos:[] };
+      G.movsPlantel = { chave:null, usados:0 };
+      refreshOVR();
+    }
+    addNoticia(G,'✈️',`Transferência! ${G.nome} assina com ${p.clube} por ${p.anos} ano${p.anos>1?'s':''}.`);
+    showToast('✈️ Bem-vindo ao '+p.clube+'!');
+  } else {
+    addNoticia(G,'📋',`${G.nome} renova com ${p.clube} por ${p.anos} ano${p.anos>1?'s':''}.`);
+    showToast('📋 Contrato renovado com '+p.clube+'!');
+  }
+  fecharNegociacao();
+  saveGame(false); updateTopBar(); renderAgenteScreen();
+}
+
+function abrirContraproposta() {
+  if (!_negocAtual || _negocAtual.paciencia <= 0) return;
+  const p = _negocAtual;
+  // Pedir 20% a mais
+  const pede = Math.round(p.salario * 1.20 / 500) * 500;
+  showPopup({
+    icon:'🔀', titulo:'Contraproposta',
+    corpo:`Você pede ${fmtMoney(pede)}/semana (+20%).
+
+O clube tem paciência ${p.paciencia}/3.`,
+    botoes:[
+      { icon:'💰', text:`Pedir ${fmtMoney(pede)}/semana`, acao:()=>{ closePopup(); resolverContraproposta(pede, 0); }},
+      { icon:'📅', text:'Pedir +1 ano de contrato',        acao:()=>{ closePopup(); resolverContraproposta(p.salario, 1); }},
+      { icon:'🔒', text:'Pedir cláusula menor (-30%)',      acao:()=>{ closePopup(); resolverContraproposta(p.salario, 0, true); }},
+    ]
+  });
+}
+
+function resolverContraproposta(salPedido, anosPedidos, clausulaMenor) {
+  if (!_negocAtual) return;
+  const p = _negocAtual;
+  p.paciencia--;
+  const roll = Math.random();
+  // Chance de aceitar baseada em OVR, fama e paciência
+  const aceitaChance = Math.min(0.7, (G.ovr||50)/100 + (G.fama||5)/200);
+  if (roll < aceitaChance * 0.6) {
+    // Aceitar pedido
+    if (salPedido > p.salario) p.salario = salPedido;
+    if (anosPedidos > 0) p.anos = Math.min(5, p.anos + anosPedidos);
+    if (clausulaMenor) p.clausula = Math.round(p.clausula * 0.70 / 100000) * 100000;
+    showToast('✅ '+p.clube+' aceitou a contraproposta!');
+    renderNegociacao(p);
+  } else if (p.paciencia <= 0 || roll > 0.85) {
+    // Clube irritado — encerra negociação
+    showToast('😤 '+p.clube+' encerrou a negociação!');
+    G.fama = Math.max(0, G.fama - 2);
+    addNoticia(G,'😤','Negociação com '+p.clube+' fracassada. Fama ↓');
+    fecharNegociacao();
+    saveGame(false);
+  } else {
+    // Meio-termo: clube oferece metade da diferença
+    const meio = Math.round((salPedido + p.salario) / 2 / 500) * 500;
+    p.salario = meio;
+    showToast('🤝 '+p.clube+' oferece meio-termo: '+fmtMoney(meio)+'/sem');
+    renderNegociacao(p);
+  }
+}
+
+function recusarProposta() {
+  if (!_negocAtual) return;
+  const clube = _negocAtual.clube;
+  addNoticia(G,'❌',G.nome+' recusou proposta do '+clube+'.');
+  fecharNegociacao();
+}
+
+// Gerar "furo" do agente (sondagem)
+function gerarFuroAgente() {
+  if (!G || G.perfil==='treinador') return;
+  const tipo = G.tipoAgente||'nenhum';
+  if (tipo==='nenhum') return;
+  const mercado = gerarClubeMercado();
+  const { clube, liga, score } = mercado;
+  if ((G.furos||[]).some(f=>f.clube===clube&&f.ativo) || (G.rumores||[]).some(r=>r.clube===clube&&r.ativo&&r.ano===G.ano)) return;
+
+  if (!isJanelaTransferencia() && !isPasseLivre()) {
+    const rumor = gerarRumorTransferencia(clube, liga, score);
+    showPopup({
+      icon:'RUMOR', titulo:'Rumor de Mercado',
+      corpo:'A imprensa diz que '+clube+' ('+liga+') esta observando '+G.nome+'.\n\nMoral +'+rumor.impactoMoral+' | Fama +'+rumor.impactoFama+(rumor.impactoEntrosamento?' | Entrosamento '+rumor.impactoEntrosamento:''),
+      botoes:[{ icon:'OK', text:'Continuar', acao:()=>{ closePopup(); saveGame(false); renderAgenteScreen(); }}]
+    });
+    return rumor;
+  }
+
+  const prazo = 4 + Math.floor(Math.random()*3);
+  const objetivo = gerarObjetivo(G.grupoPos, prazo, clube, liga);
+  const furo = { clube, liga, objetivo, ativo:true, prazo, semanaInicio:G.semanaAtual, janela:isJanelaTransferencia(), livre:isPasseLivre() };
+  G.furos = [...(G.furos||[]), furo];
+  G.objetivoAtivo = objetivo;
+  addNoticia(G,'SOND','Sondagem: '+clube+' ('+liga+') quer avaliar '+G.nome+'. Objetivo: '+objetivo.descricao);
+  showPopup({
+    icon:'SOND', titulo:isPasseLivre()?'Prova de Mercado':'Sondagem!',
+    corpo:'Seu agente traz uma noticia:\n\n"'+clube+' esta a procura de um reforco."\n\nObjetivo para garantir a proposta:\n'+objetivo.descricao+'\n\nPrazo: '+prazo+' partidas',
+    botoes:[
+      { icon:'OK', text:'Aceitar o desafio!', acao:()=>{ closePopup(); saveGame(false); navTo('agente'); }},
+      { icon:'X', text:'Ignorar por agora', acao:()=>{ G.objetivoAtivo=null; G.furos=G.furos.filter(f=>f.clube!==clube); closePopup(); }}
+    ]
+  });
+  return furo;
+}
+
+// ─── TELA DO AGENTE ──────────────────────────────────────────
+
+function renderAgenteScreen() {
+  if (!G) return;
+  renderAgenteType();
+  renderAgenteContrato();
+  renderAgenteObjetivo();
+  renderAgenteFuros();
+  renderAgenteRumores();
+}
+
+function renderAgenteType() {
+  const el = document.getElementById('agente-tipo-section');
+  if (!el) return;
+  const tipo  = G.tipoAgente||'nenhum';
+  const agente = AGENTES[tipo];
+  const nivelIdx = ['nenhum','amigo','profissional','super'].indexOf(tipo);
+
+  let html = `<div class="agente-card">
+    <div class="agente-header">
+      <div class="agente-icon">${agente.icon}</div>
+      <div><div class="agente-nome">${agente.nome}</div><div class="agente-sub">Comissão: ${Math.round(agente.comissao*100)}% · Contatos: ${agente.contatos}</div></div>
+    </div>
+    <div class="agente-level-bar"><div class="agente-level-fill" style="width:${(nivelIdx/3)*100}%"></div></div>
+    <div style="font-size:11px;color:var(--text2)">${agente.desc}</div>
+  </div>
+  <div class="sec-lbl" style="margin-bottom:8px">Trocar de Agente</div>
+  <div class="nivel-btns">`;
+
+  Object.entries(AGENTES).forEach(([key, ag]) => {
+    if (key==='nenhum') return;
+    const active = tipo===key;
+    const temGrana = G.dinheiro >= ag.custo;
+    const onclk = active ? '' : `onclick="contratarAgente('${key}')"`;
+    html += `<div class="nivel-btn ${active?'active':''}" ${onclk}>
+      <div class="nb-icon">${ag.icon}</div>
+      <div class="nb-info">
+        <div class="nb-nome">${ag.nome} ${active?'<span style="color:var(--green);font-size:10px">✅ ATIVO</span>':''}</div>
+        <div class="nb-desc">${ag.desc}</div>
+      </div>
+      ${active?'':('<div class="nb-custo">'+(temGrana?fmtMoney(ag.custo):'<span style="color:var(--red)">R$'+Math.round(ag.custo/1000)+'k</span>')+'</div>')}
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderAgenteContrato() {
+  const el = document.getElementById('agente-contrato-section');
+  if (!el) return;
+  const c = G.contrato;
+  let html = '<div class="sec-lbl" style="margin-bottom:8px">📋 Contrato Atual</div>';
+  if (isPasseLivre()) {
+    html += '<div class="agente-card" style="text-align:center;color:var(--text2);font-size:13px">Passe livre desde '+(G.semContratoDesde||G.ano)+'. Sem partidas oficiais at? assinar por um clube.</div>';
+    html += '<button class="btn-match-ctrl" style="margin-top:8px;width:100%" onclick="buscarPropostaPasseLivre()">Buscar proposta como passe livre</button>';
+    html += '<button class="btn-match-ctrl" style="margin-top:8px;width:100%" onclick="aposentarJogadorVirarTreinador()">Aposentar e virar treinador</button>';
+    el.innerHTML = html;
+    return;
+  }
+  if (!c) {
+    html += '<div class="agente-card" style="text-align:center;color:var(--text2);font-size:13px">Sem contrato formal. Seu agente pode buscar propostas.</div>';
+  } else {
+    const anosFim = G.contratoFim;
+    const restante = Math.max(0, anosFim - G.ano);
+    html += `<div class="agente-card">
+      <div style="font-size:15px;font-weight:700;margin-bottom:10px">${c.clube} — ${c.liga}</div>
+      <div class="contrato-grid">
+        <div class="contrato-item"><div class="ci-lbl">💰 Salário</div><div class="ci-val">${fmtSalarioDual(c.salario)}</div></div>
+        <div class="contrato-item"><div class="ci-lbl">📅 Vence em</div><div class="ci-val">${anosFim} (${restante}a)</div></div>
+        <div class="contrato-item"><div class="ci-lbl">⚽ Bônus gol</div><div class="ci-val">${fmtMoney(c.bonusGol||0)}</div></div>
+        <div class="contrato-item"><div class="ci-lbl">🎯 Bônus assist</div><div class="ci-val">${fmtMoney(c.bonusAssist||0)}</div></div>
+        <div class="contrato-item"><div class="ci-lbl">🔒 Cláusula</div><div class="ci-val">${fmtMoney(c.clausula||0)}</div></div>
+      </div>
+      ${restante<=1?'<div style="margin-top:8px;font-size:11.5px;color:var(--gold)">⚠️ Contrato termina em breve — renove ou busque novo clube!</div>':''}
+    </div>
+    <button class="btn-match-ctrl" style="margin-top:8px;width:100%" onclick="buscarPropostas()">🔍 Buscar propostas pelo agente</button>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderAgenteObjetivo() {
+  const el = document.getElementById('agente-objetivo-section');
+  if (!el) return;
+  const obj = G.objetivoAtivo;
+  let html = '<div class="sec-lbl" style="margin-bottom:8px">🎯 Objetivo Ativo</div>';
+  if (!obj || obj.status !== 'ativo') {
+    html += '<div style="color:var(--text2);font-size:12px;padding:8px">Sem objetivo ativo. Consiga um agente e peça furos!</div>';
+  } else {
+    const pct = Math.min(100, Math.round(obj.tipo==='gols_sofridos'
+      ? Math.max(0,(obj.meta-obj.progresso)/obj.meta*100)
+      : obj.progresso/obj.meta*100));
+    html += `<div class="objetivo-card">
+      <div class="objetivo-title">🏆 ${obj.clubeInteressado} está de olho!</div>
+      <div class="objetivo-desc">${obj.descricao}</div>
+      <div class="objetivo-prog"><div class="objetivo-fill" style="width:${pct}%"></div></div>
+      <div class="objetivo-nums">
+        <span>${obj.progresso} / ${obj.meta}</span>
+        <span>⏳ ${obj.prazoRestante} jogos restantes</span>
+      </div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}

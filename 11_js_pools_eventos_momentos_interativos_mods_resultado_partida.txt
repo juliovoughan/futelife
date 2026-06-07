@@ -1,0 +1,640 @@
+
+// ─── GERADOR DE EVENTOS PRÉ-PARTIDA ─────────────────────────
+// Gera 3-6 eventos com minutos distribuídos pelos 90 min
+// O tipo de evento depende do foco do jogador e da dificuldade
+function gerarEventosPartida(diff, foco) {
+  // Número de eventos: dificuldade menor = mais oportunidades
+  const nBase = { 'Fácil':6, 'Normal':5, 'Equilibrado':4, 'Difícil':4, 'Muito Difícil':3 }[diff.label] || 4;
+  const n = nBase;
+
+  // Distribuir minutos uniformemente nos 90 min, com alguma variação
+  // Evitar os primeiros 8 min e os últimos 5 min (realismo)
+  const slots = [];
+  const step  = Math.floor(80 / n);
+  for (let i = 0; i < n; i++) {
+    const base = 8 + i * step;
+    slots.push(base + rng(0, Math.min(step - 1, 12)));
+  }
+
+  // Pool editavel de eventos completos por foco/hook
+  const pool = MATCH_EVENT_POOLS[foco] || MATCH_EVENT_POOLS.equilibrado;
+
+  return slots.map(min => {
+    const ev = pickRandom(pool);
+    return {
+      min,
+      tipo: ev.tipo || 'gol_chance',
+      evento: ev,
+      usado: false,
+    };
+  });
+}
+
+function startMatch() {
+  if (!MS || MS.done) return;
+
+  // Esconder tela de reunião
+  const _reunEl = document.getElementById('reuniao-container');
+  if (_reunEl) _reunEl.style.display = 'none';
+
+  // Aplicar buff da reunião ao MS (se o player fez o discurso)
+  if (G.buffReuniao && !G.buffReuniao.aplicado) {
+    MS.buffReuniao = {
+      disc:     G.buffReuniao.disc,
+      discKey:  G.buffReuniao.discKey,
+      bonus:    G.buffReuniao.bonus,
+      falhaCrit: G.buffReuniao.falhaCrit,
+    };
+    G.buffReuniao.aplicado = true;
+    if (MS.buffReuniao.bonus > 0) {
+      showToast('💬 Buff ativo: −'+MS.buffReuniao.bonus+' DC nos eventos de '+MS.buffReuniao.disc.nome);
+    } else if (MS.buffReuniao.falhaCrit) {
+      showToast('❌ Discurso falhou — DC +3 nesta partida!');
+    }
+  } else {
+    MS.buffReuniao = null;
+  }
+
+  // Reset seguro: cancelar timers e loops antes de começar
+  clearTimeout(_matchTimer);
+  stopRenderLoop();
+  MS.running = false; // garantir estado limpo
+  MS.waitingChoice = false;
+  MS.paused = false;
+
+  // Gerar token de integridade da partida
+  MS._token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  _matchTokenExpected = MS._token;
+
+  document.getElementById('btn-play').style.display   = 'none';
+  document.getElementById('btn-pause').style.display  = 'flex';
+  document.getElementById('btn-lineup').style.display = 'flex';
+  const fbEl = document.getElementById('focus-bar');
+  const bpEl = document.getElementById('btn-palestra');
+  if (G.perfil !== 'treinador') {
+    if (fbEl) fbEl.style.display = 'flex';
+    if (bpEl) bpEl.style.display = 'none';
+  } else {
+    if (fbEl) fbEl.style.display = 'none';
+    if (bpEl) bpEl.style.display = 'flex';
+  }
+  document.getElementById('match-diff-info').innerHTML = '';
+
+  MS.running = true;
+  MS._halfTimeDone = false; // flag do intervalo
+  aplicarTaticaTreinador();
+
+  // Gerar pool de eventos pré-calculados para esta partida
+  MS._eventPool = gerarEventosPartida(MS.matchDiff, MS.playerFocus);
+  const evStr = MS._eventPool.map(e => e.min+"'").join(', ');
+  logMatch(`📋 ${MS._eventPool.length} eventos previstos: ${evStr}`, 'hl');
+
+  registrarMomentoSemPlayer(true, 'Apito inicial.');
+  scheduleNextTick(1200);
+}
+
+function togglePause() {
+  if (!MS || MS.done) return;
+  MS.paused = !MS.paused;
+  const btn = document.getElementById('btn-pause');
+  if (MS.paused) {
+    btn.textContent = '▶ Continuar'; btn.classList.add('paused');
+    clearTimeout(_matchTimer);
+    showToast('⏸ Partida pausada');
+  } else {
+    btn.textContent = '⏸ Pause'; btn.classList.remove('paused');
+    scheduleNextTick(600);
+    showToast('▶ Partida retomada');
+  }
+}
+
+function scheduleNextTick(delay) {
+  clearTimeout(_matchTimer);
+  if (!MS || MS.paused) return;
+  _matchTimer = setTimeout(tickMatch, delay);
+}
+
+function tickMatch() {
+  if (!MS || !MS.running || MS.done || MS.waitingChoice || MS.paused) return;
+
+  // Drain de 0.5pt por tick: a cada 2 ticks drena 1pt (arredonda alternado)
+  // 90 ticks → -45pts base; mais custo dos eventos (5-8pts cada)
+  // Com ~5 eventos: -45 - 30 + intervalo(+10) + pós(+15) → termina com ~30-40
+  if (MS.playerInGame && !MS._playerSubstituido && !MS.onBench) {
+    MS._tickCount = (MS._tickCount || 0) + 1;
+    if (MS._tickCount % 2 === 0) {
+      G.energia = Math.max(2, G.energia - 1);
+    }
+    updateEnergiaBar();
+  }
+
+  const prevMin = MS.min;
+  MS.min += rng(3, 5);
+  if (MS.min > 90) MS.min = 90;
+  document.getElementById('m-min').textContent  = MS.min + "'";
+  document.getElementById('m-prog').style.width = (MS.min/90*100) + '%';
+
+  // ─── INTERVALO: min passa de 45 pela primeira vez ───────────
+  if (prevMin < 45 && MS.min >= 45 && !MS._halfTimeDone) {
+    MS._halfTimeDone = true;
+    // Intervalo: NPCs recuperam energia
+    [...MS.squadA, ...MS.squadB].forEach(p => {
+      if (p.inGame && !p.isPlayer) p.energia = Math.min(100, p.energia + 15);
+    });
+    // Player: +10 no intervalo (descanso curto, não recuperação total)
+    if (!MS._playerSubstituido) {
+      G.energia = Math.min(energiaCap(), G.energia + 10);
+      updateEnergiaBar();
+    }
+    logMatch('INTERVALO - Equipes recuperam energia. '+MS.home+' '+MS.hs+' x '+MS.as+' '+MS.away+'.', 'hl');
+    abrirIntervaloPartida();
+    return;
+  }
+
+  const roll = rng(1, 100);
+
+  // ── Evento do jogador: verificar pool pré-gerado ──────────
+  if (G.perfil !== 'treinador' && MS.playerInGame && MS._eventPool?.length) {
+    const ev = MS._eventPool.find(e => !e.usado && MS.min >= e.min);
+    if (ev) {
+      ev.usado = true;
+      triggerMatchEvent(ev.tipo, ev.evento);
+      return; // resumeMatch() vai chamar scheduleNextTick após resposta
+    }
+  }
+
+  // Entrada do jogador do banco
+  if (!MS.playerInGame && MS.onBench && !MS.done) {
+    const myTeam   = MS.isHome ? MS.squadA : MS.squadB;
+    const subsUsed = MS.isHome ? MS.subsUsedA : MS.subsUsedB;
+    const benchMe  = myTeam.find(p => p.isPlayer && !p.inGame && !p.subbedOut);
+    if (benchMe && subsUsed < MS.subLimit && Math.random() < 0.28 && MS.min < 78) {
+      benchMe.inGame = true; MS.playerInGame = true;
+      MS.onBench = false; // já entrou em campo
+      if (MS.isHome) MS.subsUsedA++; else MS.subsUsedB++;
+      // G.energia já correto — não sobrescrever com valor do banco
+      logMatch('🔄 ' + G.nome + ' (camisa ' + benchMe.num + ') entra em campo aos ' + MS.min + "'!", 'hl');
+    }
+  }
+
+  // Gol adversário — sistema de dado progressivo (sem cap duro)
+  if (roll > 80) { // chance base de ataque adversário: 20% dos ticks
+    const advGolsCurrent = MS.isHome ? MS.golsB : MS.golsA;
+    // Limiar aumenta a cada gol já marcado — fica exponencialmente difícil
+    const threshold = calcTeamGoalThreshold('adv', advGolsCurrent);
+    const dado = rng(1, 100);
+    if (dado > threshold) {
+      addMatchMod('advAtaque', 1.0, 'gol adversario');
+      addMatchMod('defesa', -0.8, 'defesa vazada');
+      if (MS.isHome) { MS.as++; MS.golsB++; } else { MS.hs++; MS.golsA++; }
+      const oppSq = MS.isHome ? MS.squadB : MS.squadA;
+      const scorer = oppSq[rng(8,10)];
+      addNpcRating(getAdvTeamKey(), scorer.num, 1.0);
+      addPlayerRating(-0.15, 'time sofreu gol');
+      mostrarMomento('semPlayerSemPosse', (MS.isHome?MS.away:MS.home) + ' acha o espaco e o camisa '+scorer.num+' marca.', 'Gol adversario.', 'gol');
+      logMatch('⚽ GOL! ' + (MS.isHome?MS.away:MS.home) + ' — camisa '+scorer.num+' marca aos '+MS.min+"'!", 'gol');
+      updateScore(); triggerGolEffect(false); resetBallToCenter();
+    } else {
+      // Miss mais descritivo baseado em quão perto chegou
+      const diff2 = 100 - threshold;
+      const qualidadeChance = dado > threshold - diff2*0.4;
+      addMatchMod('defesa', qualidadeChance ? 0.45 : 0.75, 'defesa segurou');
+      addMatchMod('advAtaque', qualidadeChance ? 0.35 : -0.25, 'ataque adversario sem gol');
+      mostrarMomento('semPlayerSemPosse', textoMomento('semPlayerSemPosse', {
+        time: MS.isHome ? MS.home : MS.away,
+        adv: MS.isHome ? MS.away : MS.home,
+        influencia: influenciaDoPlayer(false)
+      }), qualidadeChance ? 'Chance perigosa do adversario.' : 'Defesa sustenta a pressao.', 'sem-posse');
+      logMatch(pickRandom(
+        qualidadeChance
+          ? ['Defesa do goleiro!','Na trave! Quase!','Fora por centímetros!']
+          : ['Bola na trave!','Falta cometida.','Escanteio defendido.','Fora do gol.']
+      ),'');
+    }
+  } else if (roll > 52) {
+    registrarMomentoSemPlayer(Math.random() < 0.52, pickRandom(['Disputa no meio.', 'Ritmo de jogo controlado.', 'A torcida reage ao lance.', 'Jogo fica mais fisico.']));
+  }
+
+  if (MS.min >= 90) { endMatch(); return; }
+  scheduleNextTick(1200);
+}
+
+// ─── EVENTO INTERATIVO ───────────────────────────────────────
+function triggerMatchEvent(tipo, eventoForcado = null) {
+  MS.waitingChoice = true;
+  MS._evTipo = tipo;
+  clearTimeout(_matchTimer);
+  clearTimeout(MS._safetyTimer);
+  MS._safetyTimer = setTimeout(() => {
+    if (MS && MS.waitingChoice && !MS.done) {
+      console.warn('[FuteLife] evento do player sem resposta - escolha automatica');
+      const idx = escolherAcaoAutomatica(MS._evChoices || []);
+      resolveMatchChoice(idx);
+    }
+  }, 60000);
+
+  const pool = MATCH_EVENTS[tipo] || MATCH_EVENTS.gol_chance;
+  const ev   = eventoForcado || pickRandom(pool);
+  const myTeam  = MS.isHome ? MS.squadA : MS.squadB;
+  const oppTeam = MS.isHome ? MS.squadB : MS.squadA;
+  const me  = myTeam.find(p => p.isPlayer && p.inGame);
+  const opp = oppTeam[rng(1, 4)];
+  const myNum  = me  ? me.num  : (G.camisa||10);
+  const oppNum = opp ? opp.num : rng(2, 6);
+  const desc = clampEventText(ev.desc, MATCH_EVENT_LIMITS.desc)
+    .replace(/\{player\}/g, 'camisa '+myNum)
+    .replace(/\{opp\}/g, 'camisa '+oppNum);
+
+  const comPosse = tipo !== 'defesa';
+  const grupoMomento = comPosse ? 'playerComPosse' : 'playerSemPosse';
+  mostrarMomento(grupoMomento, textoMomento(grupoMomento, {
+    player: G.nome,
+    resultado: desc
+  }), 'Evento do jogador - escolha a acao no popup.', 'player');
+
+  const _bAct = MS.buffReuniao;
+  const _bEvt = _bAct ? getBonusEvento(tipo) : 0;
+  const _bArq = _bAct ? getBonusArquetipo() : 0;
+  const _bTot = Math.max(_bEvt, _bArq);
+  const buffBadgeHtml = (_bTot > 0)
+    ? '<div style="margin-bottom:8px"><span class="buff-badge">Buff reuniao -'+_bTot+' DC</span></div>'
+    : '';
+
+  MS._evChoices = (ev.choices || []).map(ch => ({
+    ...ch,
+    text: clampEventText(ch.text, MATCH_EVENT_LIMITS.choiceText)
+  }));
+  MS._evMyNum = myNum;
+
+  document.getElementById('pm-content').innerHTML =
+    '<div class="pm-icon">?</div>' +
+    '<div class="pm-title">' + MS.min + "' - " + (FOCUS_LABELS[MS.playerFocus] || 'Evento') + '</div>' +
+    buffBadgeHtml +
+    '<div class="pm-body">' + desc + '</div>' +
+    '<div class="pm-choices">' +
+    MS._evChoices.map((ch, i) => {
+      const dcFinal = Math.max(10, ch.dif - _bTot);
+      const skillVal = getSkillValue(ch.skill, 0);
+      const dcLabel = _bTot > 0 ? 'DC:'+dcFinal+' (-'+_bTot+')' : 'DC:'+ch.dif;
+      return '<button class="pm-btn" onclick="resolveMatchChoice(' + i + ')">' +
+        '<span class="ch-icon">' + ch.icon + '</span>' +
+        '<span class="ch-text">' + ch.text + '</span>' +
+        '<span class="ch-odds">' + ch.skill + ': ' + skillVal + ' | ' + dcLabel + '</span>' +
+        '</button>';
+    }).join('') + '</div>';
+
+  const overlay = document.getElementById('popup-overlay');
+  overlay.classList.add('active');
+  overlay.onclick = null;
+}
+
+function resolveMatchChoice(i) {
+  if (!MS) return;
+  clearTimeout(MS._safetyTimer);
+  // Safety: se _evChoices é null mas waitingChoice ficou true, desbloquear
+  if (!MS._evChoices) {
+    MS.waitingChoice = false;
+    if (!MS.done && MS.min < 90) scheduleNextTick(800);
+    return;
+  }
+  const ch    = MS._evChoices[i];
+  if (!ch) { MS._evChoices = null; MS.waitingChoice = false; scheduleNextTick(800); return; }
+  const myNum = MS._evMyNum || (G.camisa||10);
+  MS._evChoices = null; MS._evMyNum = null;
+
+  document.getElementById('popup-overlay').classList.remove('active');
+  document.getElementById('popup-overlay').onclick = closePopupOutside;
+
+  const minha    = getSkillValue(ch.skill, 40);
+  const ovrBonus = Math.floor((G.ovr||50) / 10);
+  const dice     = rng(0, 100);
+  const total    = Math.floor(minha*0.55 + dice*0.35 + ovrBonus);
+  const rt       = ch.resultType || 'gol'; // tipo de resultado esperado
+
+  // Aplicar buff da reunião: reduzir DC pelo bónus do discurso
+  const buffEvento  = getBonusEvento(MS._evTipo || '');    // bónus por tipo de evento
+  const buffArq     = getBonusArquetipo();                  // bónus por arquétipo
+  const buffTotal   = Math.max(buffEvento, buffArq);        // usa o maior
+  const dcFinal     = Math.max(10, ch.dif - buffTotal);     // DC mínimo 10
+  const ok          = total >= dcFinal;
+  const buffUsado   = buffTotal > 0;
+
+  // ── Modificador de partida: eventos bons/maus ajustam os thresholds ──
+  applyEventMods(rt, ok);
+
+  let icon = ok ? '✅' : '❌';
+  let titulo = ok ? 'SUCESSO!' : 'FALHOU!';
+  let resultLine = '';
+  let logLine = '';
+
+  // Custo de energia por evento: 5-8pts por tipo
+  // (tick drain já faz a base; eventos são picos de esforço)
+  const _custosEvt = { gol:8, chance:6, assist:5, interceptacao:6, recuperacao:5, bloqueio:5 };
+  const _custoEvt = _custosEvt[rt] || 6;
+  if (!MS._playerSubstituido) {
+    G.energia = Math.max(2, G.energia - _custoEvt);
+    updateEnergiaBar();
+  }
+
+  if (!ok) {
+    addPlayerRating(['gol','chance','assist'].includes(rt) ? -0.35 : -0.2, 'erro em '+rt);
+    // Falha: feedback por tipo
+    const failMsgs = {
+      gol:           '😤 Camisa '+myNum+' chutou para fora! Lance desperdiçado.',
+      chance:        '😤 Camisa '+myNum+' perdeu a jogada.',
+      assist:        '😤 Camisa '+myNum+' errou o passe decisivo.',
+      interceptacao: '😤 Camisa '+myNum+' não conseguiu interceptar.',
+      recuperacao:   '😤 Camisa '+myNum+' foi driblado!',
+      bloqueio:      '😤 Camisa '+myNum+' não bloqueou — chute passou.',
+    };
+    logLine    = failMsgs[rt] || '😤 Camisa '+myNum+' perdeu o lance.';
+    resultLine = logLine;
+    G.moral = Math.max(20, G.moral - 2);
+    logMatch(logLine + ' Aos '+MS.min+"'.", '');
+  } else {
+    // Sucesso — resultado depende de resultType
+    // Calcular dado progressivo para gols do player/nosso time
+    const myGolsCurrent2 = MS.isHome ? MS.golsA : MS.golsB;
+    const myThreshold = calcTeamGoalThreshold('player', myGolsCurrent2);
+    const myDado = rng(1,100);
+    const teammateFinishBonus = rt === 'assist' ? 20 : 0;
+    const myGolPass = myDado > Math.max(5, myThreshold - teammateFinishBonus);
+
+    if (rt === 'gol') {
+      if (myGolPass) {
+        addPlayerRating(1.25, 'gol');
+        if (MS.isHome) { MS.hs++; MS.golsA++; } else { MS.as++; MS.golsB++; }
+        G.gols++; G.moral=Math.min(100,G.moral+5); G.fama=Math.min(100,G.fama+1);
+        logMatch('⚽ GOL! Camisa '+myNum+' ('+G.nome+') marca aos '+MS.min+"'!", 'gol');
+        MS._golsDoPlayer = (MS._golsDoPlayer||0)+1;
+        addNoticia(G,'⚽',G.nome+' (camisa '+myNum+') marcou contra o '+(MS.isHome?MS.away:MS.home)+'!');
+        updateScore(); triggerGolEffect(true); resetBallToCenter();
+        resultLine = '⚽ GOOOOOL! Camisa '+myNum+' marca!';
+        icon = '⚽'; titulo = 'GOOOOL!';
+      } else {
+        addPlayerRating(0.15, 'finalizacao defendida');
+        // Dados não passaram — goleiro defendeu (mais narrativo quanto mais difícil)
+        const narrativa = myGolsCurrent2 >= 2
+          ? '🥅 Camisa '+myNum+' chutou — defesa INCRÍVEL do goleiro! Que partida!'+' Aos '+MS.min+"'."
+          : '🥅 Camisa '+myNum+' chutou — defesa do goleiro! Aos '+MS.min+"'.";
+        logMatch(narrativa, 'hl');
+        resultLine = '🥅 Defesa do goleiro! Que chance perdida.';
+        icon = '🥅'; titulo = 'Defesa do Goleiro!';
+      }
+
+    } else if (rt === 'assist') {
+      if (myGolPass) {
+        addPlayerRating(1.0, 'assistencia');
+        if (MS.isHome) { MS.hs++; MS.golsA++; } else { MS.as++; MS.golsB++; }
+        G.assists++; G.moral=Math.min(100,G.moral+4); G.fama=Math.min(100,G.fama+1);
+        const tmNum    = pickActiveTeammateNumber(9);
+        addNpcRating(getMyTeamKey(), tmNum, 0.8);
+        logMatch('🎯 Passe DECISIVO de camisa '+myNum+'! Camisa '+tmNum+' finaliza — GOL! '+MS.min+"'", 'gol');
+        MS._assistsDoPlayer = (MS._assistsDoPlayer||0)+1;
+        addNoticia(G,'🎯',G.nome+' (camisa '+myNum+') deu assistência no '+MS.min+"' contra o "+(MS.isHome?MS.away:MS.home)+'!');
+        updateScore(); triggerGolEffect(true); resetBallToCenter();
+        resultLine = '🎯 Assistência de camisa '+myNum+'! Camisa '+tmNum+' marca!';
+        icon = '🎯'; titulo = 'ASSISTÊNCIA!';
+      } else {
+        addPlayerRating(0.35, 'passe chave');
+        logMatch('🎯 Belo passe de camisa '+myNum+'! Companheiro não consegue converter. '+MS.min+"'", 'hl');
+        resultLine = '🎯 Passe perfeito — companheiro quase marcou!';
+        icon = '🎯'; titulo = 'Passe Chave!';
+        G.moral=Math.min(100,G.moral+2);
+      }
+
+    } else if (rt === 'chance') {
+      // Criou chance: gol com 40% de prob adicional + dado progressivo
+      if (rng(0,100) < 40 && myGolPass) {
+        addPlayerRating(1.05, 'chance convertida');
+        if (MS.isHome) { MS.hs++; MS.golsA++; } else { MS.as++; MS.golsB++; }
+        G.gols++; G.moral=Math.min(100,G.moral+5); G.fama=Math.min(100,G.fama+1);
+        logMatch('⚽ GOL! Camisa '+myNum+' converte a chance criada! '+MS.min+"'", 'gol');
+        addNoticia(G,'⚽',G.nome+' (camisa '+myNum+') marcou contra o '+(MS.isHome?MS.away:MS.home)+'!');
+        updateScore(); triggerGolEffect(true); resetBallToCenter();
+        resultLine = '⚽ Chance convertida em GOL!';
+        icon = '⚽'; titulo = 'GOOOOL!';
+      } else {
+        addPlayerRating(0.25, 'chance criada');
+        logMatch('💥 Camisa '+myNum+' cria boa oportunidade! Chute por cima da trave. '+MS.min+"'", 'hl');
+        resultLine = '💥 Boa jogada! Mas a bola não entrou.';
+        icon = '💥'; titulo = 'Boa Tentativa!';
+        G.moral=Math.min(100,G.moral+1);
+      }
+
+    } else if (rt === 'interceptacao') {
+      addPlayerRating(0.45, 'interceptacao');
+      logMatch('🛡️ Camisa '+myNum+' intercepta o ataque adversário! '+MS.min+"'", 'hl');
+      if (G.statsPartida) G.statsPartida.tackles = (G.statsPartida.tackles||0)+1;
+      resultLine = '🛡️ Interceptação perfeita!';
+      icon = '🛡️'; titulo = 'Interceptação!';
+      G.moral=Math.min(100,G.moral+2);
+
+    } else if (rt === 'recuperacao') {
+      addPlayerRating(0.4, 'recuperacao');
+      logMatch('💪 Camisa '+myNum+' recupera a bola e lança o contra-ataque! '+MS.min+"'", 'hl');
+      resultLine = '💪 Bola recuperada! Contra-ataque!';
+      icon = '💪'; titulo = 'Recuperação!';
+      G.moral=Math.min(100,G.moral+2);
+      // 25% de chance de gerar gol no contra-ataque + dado progressivo
+      if (rng(0,100) < 25 && myGolPass) {
+        if (MS.isHome) { MS.hs++; MS.golsA++; } else { MS.as++; MS.golsB++; }
+        G.assists++;
+        const tmNum    = pickActiveTeammateNumber(9);
+        addPlayerRating(0.45, 'contra-ataque para gol');
+        addNpcRating(getMyTeamKey(), tmNum, 0.8);
+        logMatch('⚽ CONTRA-ATAQUE MORTAL! Camisa '+tmNum+' finaliza — GOL! '+MS.min+"'", 'gol');
+        addNoticia(G,'🛡️',G.nome+' (camisa '+myNum+') liderou recuperação que virou gol contra o '+(MS.isHome?MS.away:MS.home)+'!');
+        updateScore(); triggerGolEffect(true); resetBallToCenter();
+        resultLine += ' → GOL no contra-ataque!';
+        icon = '⚽'; titulo = 'GOL NO CONTRA!';
+      }
+
+    } else if (rt === 'bloqueio') {
+      addPlayerRating(0.45, 'bloqueio');
+      logMatch('🦵 Camisa '+myNum+' bloqueia o chute adversário! Salvou o time! '+MS.min+"'", 'hl');
+      if (G.statsPartida) G.statsPartida.defesas = (G.statsPartida.defesas||0)+1;
+      resultLine = '🦵 Bloqueio heroico!';
+      icon = '🦵'; titulo = 'Bloqueio Heroico!';
+      G.moral=Math.min(100,G.moral+2);
+    }
+  }
+
+  const grupoMomento = ['interceptacao','recuperacao','bloqueio'].includes(rt) ? 'playerSemPosse' : 'playerComPosse';
+  const resumo = resultadoTexto(rt, ok);
+  const meta = ch.text+' | '+ch.skill+': '+minha+' | dado '+dice+' | total '+total+'/'+dcFinal+' | '+modsResumo();
+  mostrarMomento(grupoMomento, textoMomento(grupoMomento, {
+    player: G.nome,
+    resultado: resumo+' '+resultLine
+  }), meta, ok && ['gol','assist','chance'].includes(rt) && resultLine.includes('GOL') ? 'gol' : 'player');
+  window._ppBtns = null;
+  setTimeout(resumeMatch, 650);
+}
+
+function resumeMatch() {
+  if (!MS || MS.done) return;
+  clearTimeout(MS._safetyTimer);
+  MS.waitingChoice = false;
+  MS._evChoices = null; // garantir estado limpo
+  // Fechar qualquer overlay que possa ter ficado aberto
+  const ov = document.getElementById('popup-overlay');
+  if (ov) { ov.classList.remove('active'); ov.onclick = closePopupOutside; }
+  // Actualizar info de dificuldade (mostra matchMod acumulado)
+  showMatchDiffInfo();
+  if (MS.min >= 90) { endMatch(); return; }
+  scheduleNextTick(800);
+}
+
+// ─── SCORE / LOG ──────────────────────────────────────────────
+function updateScore() {
+  document.getElementById('m-hs').textContent = MS.hs;
+  document.getElementById('m-as').textContent = MS.as;
+}
+
+function logMatch(text, cls) {
+  const log = document.getElementById('match-log');
+  const d   = document.createElement('div');
+  d.className = 'log-entry ' + (cls||'');
+  d.innerHTML = '<span class="log-min">' + MS.min + "'</span><span class='log-text'>" + text + '</span>';
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ─── FIM DE JOGO ──────────────────────────────────────────────
+function endMatch() {
+  if (!MS) return;
+  clearTimeout(_matchTimer); clearTimeout(MS._safetyTimer); stopRenderLoop();
+  MS.running=false; MS.done=true; MS.waitingChoice=false; MS.paused=false;
+
+  // ── Validação de integridade ─────────────────────────────
+  // Token: confirma que a partida foi iniciada legitimamente
+  if (_matchTokenExpected && MS._token !== _matchTokenExpected) {
+    console.warn('[FuteLife] endMatch: token inválido — resultado ignorado');
+    navTo('home'); return;
+  }
+  // Tempo mínimo: partida precisa ter chegado ao menos ao min 85
+  if ((MS.min || 0) < 85) {
+    console.warn('[FuteLife] endMatch chamado cedo (min '+MS.min+') — ignorado');
+    return;
+  }
+  // Cap de golos: máximo 9 por equipa (evita injeção de placar absurdo)
+  MS.hs = Math.min(9, Math.max(0, MS.hs || 0));
+  MS.as = Math.min(9, Math.max(0, MS.as || 0));
+
+  const myScore  = MS.isHome ? MS.hs : MS.as;
+  const oppScore = MS.isHome ? MS.as : MS.hs;
+  const res   = myScore>oppScore?'vitória':myScore===oppScore?'empate':'derrota';
+  const ICONS = {'vitória':'🏆','empate':'🤝','derrota':'😔'};
+  const DM    = {'vitória':+12,'empate':+2,'derrota':-8};
+
+  const rodadaLiga = MS.semana?.rodada || G.rodada || 1;
+  registrarResultadoClubeNaTabela(rodadaLiga, MS.home, MS.away, MS.hs, MS.as);
+  simularSemanaGlobal(rodadaLiga);
+  avaliarStatusClube(res);
+  sincronizarElencoPosPartida(res);
+
+  G.jogos++;
+  G.moral    = Math.max(0,   Math.min(100, G.moral  + DM[res]));
+
+  // Bônus de performance do contrato
+  if (G.contrato) {
+    // bg (código morto removido — BUG-18 fix)
+    // Simplificado: contar gols marcados neste jogo
+    const golsPartida = MS._golsDoPlayer || 0;
+    const assistsPartida = MS._assistsDoPlayer || 0;
+    const bonusTotal = golsPartida*(G.contrato.bonusGol||0) + assistsPartida*(G.contrato.bonusAssist||0);
+    if (bonusTotal > 0) {
+      G.dinheiro += bonusTotal;
+      showToast('💰 Bônus de performance: +'+fmtMoney(bonusTotal)+'!');
+    }
+  }
+
+  // Stats para objetivos
+  const sp = G.statsPartida || {};
+  const golsSofridos = MS.isHome ? MS.as : MS.hs;
+  sp.golsSofridos = (sp.golsSofridos||0) + golsSofridos;
+  if (golsSofridos === 0) sp.cleanSheets = (sp.cleanSheets||0) + 1;
+  G.statsPartida = sp;
+
+  // Objetivo: decrementar prazo
+  if (G.objetivoAtivo?.status === 'ativo') {
+    G.objetivoAtivo.prazoRestante = Math.max(0, (G.objetivoAtivo.prazoRestante||1) - 1);
+    atualizarObjetivo();
+    if (G.objetivoAtivo.prazoRestante <= 0 && G.objetivoAtivo.status === 'ativo') {
+      // Falhou
+      G.objetivoAtivo.status = 'falhado';
+      const pctOK = G.objetivoAtivo.progresso / G.objetivoAtivo.meta;
+      if (pctOK >= 0.7) {
+        // Perto — oferta menor
+        const p = gerarProposta(G.objetivoAtivo.clubeInteressado, G.objetivoAtivo.ligaInteressada, 'Desempenho parcial');
+        p.salario = Math.round(p.salario * 0.80 / 500) * 500;
+        addNoticia(G,'😕','Objetivo quase cumprido. '+G.objetivoAtivo.clubeInteressado+' fez uma proposta menor.');
+        setTimeout(()=>iniciarNegociacao(p, true), 800);
+      } else {
+        G.fama = Math.max(0, G.fama - 3);
+        addNoticia(G,'❌','Objetivo falhado. '+G.objetivoAtivo.clubeInteressado+' perdeu o interesse. Fama ↓');
+        showToast('❌ Objetivo falhado. '+G.objetivoAtivo.clubeInteressado+' desistiu.');
+      }
+      G.objetivoAtivo = null;
+      G.furos = (G.furos||[]).map(f=>({...f,ativo:false}));
+    }
+  }
+  // Entrosamento: +2 por partida, mais se vitória
+  G.jogosSeguidos = (G.jogosSeguidos||0) + 1;
+  const entrosGain = res==='vitória'?5:res==='empate'?2:1;
+  G.entrosamento = Math.min(100, (G.entrosamento||30) + entrosGain);
+
+  // G.energia já é a fonte única — sem sync necessário
+  G.energia = Math.max(2, G.energia);
+  if (MS.semana) MS.semana.passada = true;
+
+  document.getElementById('m-min').textContent = 'FIM DE JOGO';
+  document.getElementById('btn-pause').style.display  = 'none';
+  document.getElementById('btn-lineup').style.display = 'none';
+  const _fb = document.getElementById('focus-bar');
+  if (_fb) _fb.style.display = 'none';
+  const _bp = document.getElementById('btn-palestra');
+  if (_bp) _bp.style.display = 'none';
+  logMatch('🏁 Apito final! '+MS.home+' '+MS.hs+' × '+MS.as+' '+MS.away, 'hl');
+  addNoticia(G, ICONS[res], res.charAt(0).toUpperCase()+res.slice(1)+'! '+G.clube+' '+myScore+'×'+oppScore+' '+(MS.isHome?MS.away:MS.home));
+  const notasFinais = resumoNotasIntervalo();
+  showPopup({
+    icon: ICONS[res],
+    titulo: res.charAt(0).toUpperCase()+res.slice(1)+'!',
+    corpo: (()=>{
+      const corEnergia = G.energia > 50 ? '🟢' : G.energia > 25 ? '🟡' : '🔴';
+      const subInfo = MS._playerSubstituido ? ' (saiu)' : '';
+      return MS.home+' '+MS.hs+' × '+MS.as+' '+MS.away+
+        '\n\nGols na temporada: '+G.gols+
+        '\nNota final: '+notasFinais.notaPlayer+
+        '\nMelhor em campo: '+notasFinais.melhor+
+        '\n'+corEnergia+' Energia restante: '+G.energia+'/'+energiaCap()+subInfo+
+        '\nMoral: '+(DM[res]>0?'😊 +'+DM[res]:'😔 '+DM[res]);
+    })(),
+    botoes: [{ icon:'🏠', text:'Voltar ao início', acao: () => {
+      closePopup();
+      if (MS.semana) MS.semana.passada = true;
+      if (MS.semana?.rodada) G.rodada = MS.semana.rodada;
+      G.semanaAtual++;
+      // NÃO recuperar energia aqui — passarSemana cuidará disso corretamente.
+      // Apenas salário e renda passiva (coisas que não dependem de energia)
+      G.dinheiro += Math.floor(G.salario);
+      G._salarioPago = true;
+      const inv = G.inventario||{};
+      let rp = 0;
+      if (typeof INVESTIMENTOS !== 'undefined') {
+        INVESTIMENTOS.forEach(item => { if (inv[item.id] && item.rendaSemana>0) rp += item.rendaSemana; });
+      }
+      if (rp > 0) { G.dinheiro += rp; showToast('💰 Renda passiva: +R$'+rp.toLocaleString('pt-BR')); }
+      aplicarCustosVidaSemanal();
+      // Recuperacao pos-jogo: treinador recupera menos energia mental que o jogador.
+      const recPosJogo = G.perfil === 'treinador' ? (res==='derrota' ? 6 : res==='empate' ? 8 : 10) : (MS._playerSubstituido ? 20 : 15);
+      G.energia = Math.min(energiaCap(), G.energia + recPosJogo);
+      showToast('😴 Pós-jogo: +'+recPosJogo+' energia ('+G.energia+'/'+energiaCap()+')');
+      G.treinoHoje = 0; G.energeticoHoje = 0;
+      avançarLesao();
+      saveGame(false);
+      navTo('home'); renderCalendario(); updateTopBar(); updateEnergiaBar();
+    }}]
+  });
+}

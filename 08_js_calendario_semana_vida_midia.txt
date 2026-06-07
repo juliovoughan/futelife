@@ -1,0 +1,623 @@
+
+function renderAgenteFuros() {
+  const el = document.getElementById('agente-furos-section');
+  if (!el) return;
+  const furos = (G.furos||[]).filter(f=>f.ativo);
+  let html = '<div class="sec-lbl" style="margin-bottom:8px">🔍 Sondagens Ativas</div>';
+  if (!furos.length) {
+    html += '<div style="color:var(--text2);font-size:12px;padding:8px">Nenhuma sondagem ativa. Peça ao agente para buscar oportunidades.</div>';
+    html += '<button class="btn-match-ctrl" style="margin-top:8px;width:100%" onclick="pedirFuroAgente()">🔍 Pedir sondagem ao agente</button>';
+  } else {
+    furos.forEach(f => {
+      html += `<div class="furo-card">
+        <div class="furo-clube">${f.clube} · ${f.liga}</div>
+        <div class="furo-desc">Objetivo: ${f.objetivo?.descricao||'—'}</div>
+        <div class="furo-prazo">⏳ ${f.objetivo?.prazoRestante||f.prazo} jogos restantes</div>
+      </div>`;
+    });
+  }
+  el.innerHTML = html;
+}
+
+function renderAgenteRumores() {
+  const el = document.getElementById('agente-furos-section');
+  if (!el) return;
+  const rumores = (G.rumores||[]).filter(r=>r.ativo).slice(-4).reverse();
+  if (!rumores.length) return;
+  let html = el.innerHTML + '<div class="sec-lbl" style="margin:12px 0 8px">Rumores</div>';
+  rumores.forEach(r => {
+    html += '<div class="furo-card">' +
+      '<div class="furo-clube">RUMOR ? '+r.clube+' ? '+r.liga+'</div>' +
+      '<div class="furo-desc">Impacto: moral +'+(r.impactoMoral||0)+', fama +'+(r.impactoFama||0)+(r.impactoEntrosamento?' ? entrosamento '+r.impactoEntrosamento:'')+'</div>' +
+      '<div class="furo-prazo">Semana '+r.semana+' ? '+r.ano+'</div>' +
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function contratarAgente(key) {
+  if (!G) return;
+  const ag = AGENTES[key];
+  if (!ag) return;
+  if (G.dinheiro < ag.custo) { showToast('💸 Dinheiro insuficiente!'); return; }
+  showPopup({
+    icon:ag.icon, titulo:'Contratar '+ag.nome,
+    corpo:ag.desc+'\n\nComissão: '+Math.round(ag.comissao*100)+'% sobre salários\nCusto inicial: '+fmtMoney(ag.custo),
+    botoes:[
+      { icon:'✅', text:'Contratar', acao:()=>{
+        G.dinheiro -= ag.custo; G.tipoAgente = key;
+        G.temEmpresario = key !== 'nenhum';
+        addNoticia(G,ag.icon,'Novo agente: '+ag.nome+'!');
+        closePopup(); renderAgenteScreen(); updateTopBar(); saveGame(false);
+        showToast(ag.icon+' '+ag.nome+' contratado!');
+      }},
+      { icon:'❌', text:'Cancelar', acao:closePopup }
+    ]
+  });
+}
+
+function pedirFuroAgente() {
+  if (!G) return;
+  const tipo = G.tipoAgente||'nenhum';
+  if (tipo==='nenhum') { showToast('❌ Contrate um agente primeiro!'); return; }
+  gerarFuroAgente();
+}
+
+function buscarPropostas() {
+  if (!G) return;
+  const tipo = G.tipoAgente||'nenhum';
+  if (tipo==='nenhum') {
+    showToast('Contrate um agente para buscar propostas!'); return;
+  }
+  if (isPasseLivre()) {
+    buscarPropostaPasseLivre();
+    return;
+  }
+  if (!isJanelaTransferencia()) {
+    gerarFuroAgente();
+    return;
+  }
+  const contExpira = G.contratoFim && G.contratoFim - G.ano <= 1;
+  const chance = contExpira ? 0.75 : 0.45;
+  if (Math.random() < chance) {
+    const mercado = gerarClubeMercado();
+    const proposta = gerarProposta(mercado.clube, mercado.liga, 'Janela de transfer?ncias');
+    iniciarNegociacao(proposta, false);
+  } else {
+    showToast('Nenhum clube interessado no momento. Tente ap?s mais jogos!');
+  }
+}
+
+// ─── ARQUÉTIPOS E TALENTOS (UI) ─────────────────────────────
+
+function openArquetipoMenu() {
+  if (!G || G.perfil==='treinador') return;
+  const arqs = getArquetipoPorGrupo(G.grupoPos);
+  const atual = G.arquetipo;
+  const pts   = G.pontosArquetipo||0;
+
+  if (!atual) {
+    // Ainda não escolheu arquétipo — mostrar seleção
+    showPopup({
+      icon:'🌟', titulo:'Escolha seu Arquétipo',
+      corpo:'Defina seu estilo de jogo! Esta escolha é permanente e dá bônus imediatos nos atributos.\n\nPontos de talento: '+pts,
+      botoes: arqs.map(a => ({
+        icon: a.icon, text: a.nome+' — '+a.desc,
+        acao: () => confirmarArquetipo(a.key)
+      }))
+    });
+  } else {
+    // Já escolheu — mostrar árvore de talentos
+    renderTalentoMenu(atual);
+  }
+}
+
+function confirmarArquetipo(arqKey) {
+  closePopup();
+  const arqs = getArquetipoPorGrupo(G.grupoPos);
+  const arq  = arqs.find(a=>a.key===arqKey);
+  if (!arq) return;
+  G.arquetipo = arqKey;
+  G.pontosArquetipo = (G.pontosArquetipo||0) + 1; // 1 ponto grátis ao escolher
+  applyArquetipoBonus(arqKey, G.grupoPos);
+  refreshOVR();
+  addNoticia(G,'🌟',G.nome+' adotou o arquétipo '+arq.nome+'! Novos bônus desbloqueados.');
+  saveGame(false); updateTopBar();
+  showToast('🌟 Arquétipo '+arq.nome+' ativado! Bônus aplicados.');
+  setTimeout(()=>renderTalentoMenu(arqKey), 400);
+}
+
+function renderTalentoMenu(arqKey) {
+  const arqs = getArquetipoPorGrupo(G.grupoPos);
+  const arq  = arqs.find(a=>a.key===arqKey);
+  if (!arq) return;
+  const pts = G.pontosArquetipo||0;
+  const desbloqueados = G.talentos||[];
+
+  const talHTML = arq.talentos.map(t => {
+    const done = desbloqueados.includes(t.key);
+    const canBuy = !done && pts >= t.custo;
+    return '<div class="talent-item '+(done?'unlocked':'locked')+'">'+
+      '<div class="talent-cost">'+(done?'✅':t.custo+'⭐')+'</div>'+
+      '<div class="talent-info">'+
+        '<div class="talent-name">'+t.nome+'</div>'+
+        '<div class="talent-eff">'+t.efeito+'</div>'+
+      '</div>'+
+      (done ? '' : '<button class="talent-btn" '+(canBuy?'':'disabled')+
+        ' onclick="unlockTalento(\''+t.key+'\')">Pegar</button>')+
+      '</div>';
+  }).join('');
+
+  showPopup({
+    icon: arq.icon,
+    titulo: arq.nome+' — Talentos',
+    corpo: 'Pontos disponíveis: ⭐'+pts+'\n\nSeu arquétipo: '+arq.desc,
+    botoes:[{icon:'✔️', text:'Fechar', acao:closePopup}]
+  });
+  // Injetar talHTML após o corpo
+  setTimeout(()=>{
+    const modal = document.getElementById('pm-content');
+    if (!modal) return;
+    const div = document.createElement('div');
+    div.className = 'talent-row'; div.innerHTML = talHTML;
+    modal.appendChild(div);
+  }, 50);
+}
+
+function unlockTalento(talKey) {
+  const arqKey = G.arquetipo;
+  const arqs   = getArquetipoPorGrupo(G.grupoPos);
+  const arq    = arqs.find(a=>a.key===arqKey);
+  if (!arq) return;
+  const tal = arq.talentos.find(t=>t.key===talKey);
+  if (!tal) return;
+  if ((G.pontosArquetipo||0) < tal.custo) { showToast('❌ Pontos insuficientes!'); return; }
+  if ((G.talentos||[]).includes(talKey))  { showToast('Já desbloqueado!'); return; }
+
+  G.pontosArquetipo -= tal.custo;
+  G.talentos = [...(G.talentos||[]), talKey];
+  applyTalentoBonus(talKey, G.grupoPos);
+  refreshOVR(); saveGame(false); updateTopBar();
+  addNoticia(G,'🌟',G.nome+' desbloqueou o talento: '+tal.nome+'!');
+  closePopup();
+  showToast('🌟 Talento "'+tal.nome+'" desbloqueado!');
+  setTimeout(()=>renderTalentoMenu(arqKey), 300);
+}
+
+// Ganhar pontos de talento: ao completar 5 jogos seguidos no mesmo clube
+
+function checkLesaoPartida() {
+  if (!G || G.emLesao || G.perfil==='treinador') return;
+  // Pequena chance de lesão em partida se energia muito baixa
+  if (G.energia < 20 && Math.random() < 0.08) {
+    aplicarLesao('partida');
+  }
+}
+function checkArquetipoPoints() {
+  if (!G || G.perfil==='treinador') return;
+  const jogos = G.jogosSeguidos||0;
+  // A cada 5 jogos consecutivos ganha 1 ponto
+  if (jogos>0 && jogos%5===0) {
+    G.pontosArquetipo = (G.pontosArquetipo||0)+1;
+    showToast('⭐ +1 ponto de talento! ('+jogos+' jogos seguidos)');
+    // Mostrar card de talentos
+    const card = document.getElementById('card-talentos');
+    if (card) card.style.display='block';
+    const badge = document.getElementById('talentos-badge');
+    if (badge) badge.style.display='block';
+  }
+}
+
+
+// ─── AGENTES ─────────────────────────────────────────────────
+
+const AGENTES = {
+  nenhum:      { icon:'👤', nome:'Sem Agente',     comissao:0,    contatos:'Nenhum',       custo:0,       desc:'Negocia sozinho. Sem furos, salários menores.' },
+  amigo:       { icon:'👨‍👦', nome:'Amigo / Pai',    comissao:0.05, contatos:'Local',        custo:3000,    desc:'Comissão 5% (1 mês). Propostas nacionais básicas.' },
+  profissional:{ icon:'🕴️', nome:'Agente Pro',     comissao:0.10, contatos:'Nacional',     custo:18000,   desc:'Comissão 10% (1 mês). Bons contatos, furos nacionais.' },
+  super:       { icon:'🌟', nome:'Super Agente',   comissao:0.15, contatos:'Internacional', custo:60000,   desc:'Comissão 15% (1 mês). Abre portas em clubes de elite.' },
+};
+
+// Gerar objetivos baseados na posição do jogador
+function gerarObjetivo(grupoPos, prazoJogos, clubeInteressado, ligaInteressada) {
+  const pool = {
+    ATA: [
+      { descricao:'Marcar {n} gols nos próximos {p} jogos', tipo:'gols', meta:Math.max(2,Math.round(prazoJogos*0.6)), stat:'gols' },
+      { descricao:'Taxa de conversão acima de 35% em {p} jogos', tipo:'conversao', meta:35, stat:'conversao' },
+      { descricao:'Pelo menos {n} assistências em {p} jogos', tipo:'assists', meta:Math.max(1,Math.round(prazoJogos*0.4)), stat:'assists' },
+    ],
+    MEI: [
+      { descricao:'Dar {n} assistências em {p} jogos', tipo:'assists', meta:Math.max(2,Math.round(prazoJogos*0.5)), stat:'assists' },
+      { descricao:'Marcar {n} gols em {p} jogos', tipo:'gols', meta:Math.max(1,Math.round(prazoJogos*0.4)), stat:'gols' },
+    ],
+    DEF: [
+      { descricao:'Sofrer no máximo {n} gols nos próximos {p} jogos', tipo:'gols_sofridos', meta:Math.ceil(prazoJogos*0.4), stat:'golsSofridos' },
+      { descricao:'Fazer {n} tackles (recuperações) em {p} jogos', tipo:'tackles', meta:Math.max(3,prazoJogos*2), stat:'tackles' },
+    ],
+    GOL: [
+      { descricao:'Fazer {n} defesas nos próximos {p} jogos', tipo:'defesas', meta:Math.max(5,prazoJogos*3), stat:'defesas' },
+      { descricao:'{n} jogos sem sofrer gols nos próximos {p} jogos', tipo:'cleansheets', meta:Math.max(1,Math.round(prazoJogos*0.5)), stat:'cleanSheets' },
+    ],
+  };
+  const grp = pool[grupoPos] || pool.ATA;
+  const tpl = grp[Math.floor(Math.random()*grp.length)];
+  const descricao = tpl.descricao
+    .replace('{n}', tpl.meta)
+    .replace('{p}', prazoJogos);
+  const stats = G?.statsPartida || {};
+  const valorInicial = {
+    gols: G?.gols || 0,
+    assists: G?.assists || 0,
+    golsSofridos: stats.golsSofridos || 0,
+    tackles: stats.tackles || 0,
+    defesas: stats.defesas || 0,
+    cleanSheets: stats.cleanSheets || 0,
+    rematesTotal: stats.rematesTotal || 0,
+    rematesToGol: stats.rematesToGol || 0,
+  };
+  return {
+    descricao, tipo:tpl.tipo, meta:tpl.meta, progresso:0,
+    prazo:prazoJogos, prazoRestante:prazoJogos,
+    stat:tpl.stat,
+    valorInicial,
+    clubeInteressado, ligaInteressada,
+    status:'ativo', // 'ativo'|'cumprido'|'falhado'
+  };
+}
+
+// Determinar oferta salarial baseada em OVR, Fama e liga
+function calcOfertaSalario(ovr, fama, liga) {
+  // Escala semanal: jovem promissor no Brasil deve orbitar ~R$10k/semana.
+  const base = 2500 + Math.max(0, ovr - 45) * 280 + (fama||0) * 160;
+  const ligaMult = {
+    'Premier League':3.2, 'La Liga':2.8, 'Bundesliga':2.5,
+    'Serie A':2.2, 'Primeira Liga':1.45, 'Brasileirão':1.0, 'Brasileirao':1.0,
+  }[liga] || 1.25;
+  return Math.max(1200, Math.round(base * ligaMult / 500) * 500);
+}
+
+// Gerar proposta de contrato de um clube
+function gerarProposta(clube, liga, motivoAgente) {
+  if (!G) return null;
+  const ovr  = G.ovr || 50;
+  const fama = G.fama || 5;
+  const salBase = calcOfertaSalario(ovr, fama, liga);
+  // Agente melhora oferta
+  const agtBonus = { nenhum:0, amigo:0.05, profissional:0.10, super:0.20 }[G.tipoAgente||'nenhum'];
+  const salario = Math.round(salBase * (1 + agtBonus) / 500) * 500;
+  const anos    = [1, 2, 3][Math.floor(Math.random()*3)];
+  const bonusGol    = Math.round(salario * 0.08); // ~8% do salário semanal por gol
+  const bonusAssist = Math.round(salario * 0.05); // ~5% por assistência
+  const clausula   = salario * 52 * anos * (0.8 + Math.random()*0.5);
+  return {
+    clube, liga, salario, anos, bonusGol, bonusAssist,
+    clausula: Math.round(clausula / 100000) * 100000,
+    paciencia: 3, // tentativas de contraproposta restantes
+    motivoAgente: motivoAgente || null,
+  };
+}
+
+// Calcular progresso de objetivo ativo
+function atualizarObjetivo() {
+  if (!G?.objetivoAtivo || G.objetivoAtivo.status !== 'ativo') return;
+  const obj = G.objetivoAtivo;
+  const stats = G.statsPartida || {};
+  const base = obj.valorInicial || {};
+  // Atualizar progresso baseado no tipo
+  switch (obj.tipo) {
+    case 'gols':       obj.progresso = Math.max(0, (G.gols||0) - (base.gols||0)); break;
+    case 'assists':    obj.progresso = Math.max(0, (G.assists||0) - (base.assists||0)); break;
+    case 'gols_sofridos': obj.progresso = Math.max(0, (stats.golsSofridos||0) - (base.golsSofridos||0)); break;
+    case 'tackles':    obj.progresso = Math.max(0, (stats.tackles||0) - (base.tackles||0)); break;
+    case 'defesas':    obj.progresso = Math.max(0, (stats.defesas||0) - (base.defesas||0)); break;
+    case 'cleansheets':obj.progresso = Math.max(0, (stats.cleanSheets||0) - (base.cleanSheets||0)); break;
+    case 'conversao':
+      const remates = Math.max(0, (stats.rematesTotal||0) - (base.rematesTotal||0));
+      const golsRemate = Math.max(0, (stats.rematesToGol||0) - (base.rematesToGol||0));
+      obj.progresso = remates > 0 ? Math.round(golsRemate/remates*100) : 0;
+      break;
+  }
+  // Cumprido?
+  const jogosDecorridos = Math.max(0, (obj.prazo || 0) - (obj.prazoRestante || 0));
+  const cumprido = obj.tipo === 'gols_sofridos'
+    ? jogosDecorridos >= (obj.prazo || 1) && obj.progresso <= obj.meta
+    : obj.progresso >= obj.meta;
+  if (cumprido && obj.prazoRestante > 0) {
+    obj.status = 'cumprido';
+    showToast('🎯 Objetivo cumprido! '+obj.clubeInteressado+' vai fazer uma proposta!');
+    addNoticia(G,'🎯','Objetivo cumprido: '+obj.descricao+'. '+obj.clubeInteressado+' interessado!');
+    // Gerar proposta imediata
+    setTimeout(()=>iniciarNegociacao(
+      gerarProposta(obj.clubeInteressado, obj.ligaInteressada, 'Você cumpriu o objetivo!'),
+      true
+    ), 1000);
+    saveGame(false);
+  }
+}
+
+function fimDeTemporada() {
+  G.ano++; G.semanaAtual=1; G.idade++;
+  G.despesasSurpresa = (G.despesasSurpresa||[]).filter(d => d.ano >= G.ano - 1);
+  G.ultimaDespesaSurpresaAno = null;
+  // Acumular totais de carreira antes de resetar
+  const _jogosTemporada = G.jogos; // capturar ANTES de resetar (NEW-01 fix)
+  G.jogos_total  = (G.jogos_total  || 0) + G.jogos;
+  G.gols_total   = (G.gols_total   || 0) + G.gols;
+  G.assists_total= (G.assists_total|| 0) + G.assists;
+  G.gols=0; G.assists=0; G.jogos=0;
+  G.energia=90;
+  // Reset stats de partida no fim de temporada
+  G.statsPartida = { golsSofridos:0, defesas:0, tackles:0, rematesTotal:0, rematesToGol:0, cleanSheets:0 };
+  // Furos expiram com a temporada
+  G.furos = (G.furos||[]).map(f=>({...f,ativo:false}));
+  G.rumores = (G.rumores||[]).map(r=>({...r,ativo:false}));
+  if (G.perfil === 'jogador' && G.contratoFim && G.contratoFim <= G.ano) {
+    entrarPasseLivre('fim de contrato');
+  }
+  // Agente pode trazer uma proposta no fim de temporada
+  if ((G.tipoAgente||'nenhum')!=='nenhum' && Math.random()<0.6) {
+    setTimeout(gerarFuroAgente, 1200);
+  } G.moral=Math.min(100,G.moral+10);
+  G.palestraUsada = false;
+  // NEW-02: capturar discKey ANTES de limpar buffReuniao
+  const _discKey = G.buffReuniao?.discKey || MS?.buffReuniao?.discKey || '';
+  G.buffReuniao = null; // limpar buff da reunião
+
+  // Crescimento de liderança e compostura após cada partida
+  // +1 a cada partida, mais bônus se usou discurso correspondente
+  if (G.perfil !== 'treinador') {
+    // disc.stat não existe — usar discKey que é sempre salvo no buffReuniao
+    const usouLid  = _discKey === 'lideranca_disc';
+    const usouComp = _discKey === 'compostura_disc';
+    G.lideranca  = Math.min(20, (G.lideranca||5)  + (usouLid  ? 1 : 0));
+    G.compostura = Math.min(20, (G.compostura||5) + (usouComp ? 1 : 0));
+    // +0.5 geral por cada jogos (discreto — a cada 2 jogos +1)
+    if (_jogosTemporada >= 2 && _jogosTemporada % 2 === 0) {
+      G.lideranca  = Math.min(20, G.lideranca  + 1);
+      G.compostura = Math.min(20, G.compostura + 1);
+    }
+  }
+  // Curar lesão no fim de temporada — só cura se faltam <= 2 semanas
+  // Evita exploit de acumular lesões longas perto do fim da temporada
+  if (G.emLesao) {
+    if ((G.semanasLesao||0) <= 2) {
+      G.emLesao=false; G.semanasLesao=0; G.lesaoTipo=null;
+    } else {
+      // Desconta as semanas de pré-temporada (simulação: ~4 semanas de preparação)
+      G.semanasLesao = Math.max(0, G.semanasLesao - 4);
+      if (G.semanasLesao === 0) { G.emLesao=false; G.lesaoTipo=null; }
+      addNoticia(G,'🩹','Lesão de '+G.lesaoTipo+' ainda em recuperação na pré-temporada. '+G.semanasLesao+' semanas restantes.');
+    }
+  }
+  // ── Declínio por idade ─────────────────────────────────────
+  const declTexto = [];
+  if (G.perfil === 'jogador') {
+    const FISICOS = ['velocidade','aceleracao','resistencia','forca'];
+    const TODOS   = [...FISICOS,'finalizacao','drible','passeCurto','reacoes','posicao',
+                     'diving','reflexosGK','handling','agilidade'];
+
+    if (G.idade >= 38) {
+      // 38+: declínio severo em tudo
+      TODOS.forEach(s => {
+        if (G.attrs[s] !== undefined && G.attrs[s] > 35 && Math.random() < 0.70) {
+          const queda = rng(1, 2);
+          G.attrs[s] = Math.max(35, G.attrs[s] - queda);
+          declTexto.push(s+' −'+queda);
+        }
+      });
+    } else if (G.idade >= 34) {
+      // 34-37: declínio físico mais agressivo
+      FISICOS.forEach(s => {
+        if (G.attrs[s] !== undefined && G.attrs[s] > 40 && Math.random() < 0.75) {
+          const queda = rng(1, 2);
+          G.attrs[s] = Math.max(40, G.attrs[s] - queda);
+          declTexto.push(s+' −'+queda);
+        }
+      });
+    } else if (G.idade >= 32) {
+      // 32-33: declínio físico leve
+      FISICOS.forEach(s => {
+        if (G.attrs[s] !== undefined && G.attrs[s] > 45 && Math.random() < 0.50) {
+          G.attrs[s] = Math.max(45, G.attrs[s] - 1);
+          declTexto.push(s+' −1');
+        }
+      });
+    }
+    if (declTexto.length) addNoticia(G,'📉','Declínio na temporada: '+declTexto.join(', ')+'.');
+  }
+
+  // ── Aposentadoria forçada ───────────────────────────────────
+  if (G.perfil === 'jogador' && G.idade >= 40) {
+    G.aposentado = true;
+    showPopup({
+      icon:'🏅', titulo:'Fim de Carreira',
+      corpo:`${G.nome} tem ${G.idade} anos.
+
+O teu corpo já não aguenta mais. Chegou a hora de pendurar as chuteiras.
+
+📊 Carreira: ${G.jogos_total||G.jogos} jogos · ${G.gols_total||G.gols} golos · ${G.assists_total||G.assists} assistências
+
+Obrigado por jogar! 🏆`,
+      botoes:[
+        { icon:'🔁', text:'Nova Carreira', acao:()=>{ closePopup(); localStorage.removeItem('futelife_save'); location.reload(); }},
+        { icon:'📊', text:'Ver Estatísticas', acao: closePopup }
+      ]
+    });
+    return; // não avança mais a temporada
+  }
+  avaliarObjetivoDiretoriaFimTemporada();
+  // Talento: checkArquetipoPoints só no fim de temp
+  checkArquetipoPoints();
+  G.calendario = gerarCalendario(G);
+  initTabelaLiga(true);
+  if (G.perfil === 'treinador') gerarObjetivoDiretoriaTemporada();
+  addNoticia(G,'🎊',`Temporada ${G.ano-1} encerrada! ${G.nome} agora tem ${G.idade} anos.`);
+  saveGame(false);
+  const isAuge = G.idade>=24&&G.idade<=29;
+  const isDec  = G.idade>=32;
+  const idadeInfo = isAuge ? '\n⚡ Você está no AUGE da carreira!' : isDec ? '\n📉 Atributos físicos começam a declinar.' : '';
+  showPopup({ icon:'🎊', titulo:'Nova Temporada!',
+    corpo:`Temporada ${G.ano-1} concluída!\n${G.nome} agora tem ${G.idade} anos.${idadeInfo}\nEnergias renovadas para ${G.ano}!`,
+    botoes:[{icon:'⚽', text:'Iniciar nova temporada', acao:()=>{ closePopup(); renderHomeScreen(); renderCalendario(); updateTopBar(); }}]
+  });
+}
+
+// Aplicar lesão ao jogador
+function aplicarLesao(origem) {
+  const lesoes = [
+    {tipo:'Distensão muscular', semanas:2},
+    {tipo:'Entorse no tornozelo', semanas:3},
+    {tipo:'Pancada na costela', semanas:1},
+    {tipo:'Lesão no joelho (leve)', semanas:4},
+  ];
+  const lesao = pickRandom(lesoes);
+  G.emLesao     = true;
+  G.semanasLesao= lesao.semanas;
+  G.lesaoTipo   = lesao.tipo;
+  G.energia     = Math.max(0, G.energia - 30);
+  addNoticia(G,'🩹',G.nome+' lesionou-se ('+lesao.tipo+'). '+lesao.semanas+' semanas de recuperação.');
+  showPopup({
+    icon:'🩹', titulo:'Lesão!',
+    corpo:origem==='treino'
+      ? 'O treino intenso com energia baixa causou uma '+lesao.tipo+'!\n\n🗓️ Recuperação estimada: '+lesao.semanas+' semanas.\n\n💡 Descanse bem e use energéticos.'
+      : 'Você se lesionou em campo! '+lesao.tipo+'\n\n🗓️ Recuperação: '+lesao.semanas+' semanas.',
+    botoes:[{icon:'🩹', text:'Entendido', acao:closePopup}]
+  });
+}
+
+// Avançar semanas de lesão (chamado em passarSemana)
+function avançarLesao() {
+  if (!G.emLesao) return;
+  G.semanasLesao = Math.max(0, G.semanasLesao - 1);
+  if (G.semanasLesao <= 0) {
+    G.emLesao = false; G.lesaoTipo = null;
+    showToast('✅ Lesão curada! Você está de volta.');
+    addNoticia(G,'✅',G.nome+' se recuperou da lesão e está de volta aos treinos!');
+  } else {
+    G.energia = Math.min(energiaCap(), G.energia + 10); // recuperação em repouso
+  }
+}
+
+// ─── MATCH ───────────────────────────────────────────────────
+
+let MS   = null;
+let _matchTokenExpected = null; // token de integridade da partida
+let _rAF = null;
+let _matchTimer = null;
+
+// Formação 4-3-3 base  idx: 0=GK 1-4=DEF 5-7=MEI 8-10=ATA
+const BASE_HOME = [
+  [0.06,0.50],
+  [0.20,0.15],[0.20,0.38],[0.20,0.62],[0.20,0.85],
+  [0.40,0.22],[0.40,0.50],[0.40,0.78],
+  [0.62,0.18],[0.62,0.50],[0.62,0.82]
+];
+const BASE_AWAY = BASE_HOME.map(([x,y]) => [1-x, y]);
+
+// Nomes e OVRs genéricos para time adversário
+const NPC_NAMES = ['Goleiro','Lat Dir','Zagueiro','Zagueiro','Lat Esq','Volante','Meia','Meia','Ponta D','Centroav','Ponta E'];
+const NPC_POS   = ['GK','RB','CB','CB','LB','VOL','MC','MC','RW','ST','LW'];
+const NPC_OVR   = [72,68,73,74,69,70,71,68,73,76,72];
+const SUB_NAMES = ['Res GK','Res Def','Res Meia','Res Ata','Res Ata'];
+const SUB_POS   = ['GK','DEF','MEI','ATA','ATA'];
+const NPC_NUMS  = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
+
+// Limite de subs por liga
+const SUB_LIMIT_MAP = {
+  'Premier League':5,'La Liga':5,'Bundesliga':5,'Serie A':5,'Ligue 1':5,
+  'Brasileirão':5,'Liga dos Campeões':6,'default':5
+};
+
+// Gera elenco completo de 16 (11 tit + 5 sub) para um time
+// ─── OVR DO TIME E DIFICULDADE DA PARTIDA ─────────────────────
+
+// Calcula OVR médio de um elenco (array com .ovr)
+function calcTeamOvr(squad) {
+  const starters = squad.filter(p => p.inGame).slice(0, 11);
+  if (!starters.length) return 70;
+  return Math.round(starters.reduce((s, p) => s + (p.ovr||70), 0) / starters.length);
+}
+
+// OVR base do adversário NPC (baseado na liga do jogador)
+const LIGA_OVR = {
+  'Brasileirão': 68, 'Liga dos Campeões': 80, 'Premier League': 78,
+  'La Liga': 79, 'Bundesliga': 76, 'Serie A': 75, 'Ligue 1': 73, 'default': 70
+};
+
+// ─── DIFICULDADE DA PARTIDA — dados progressivos (sem cap duro) ──────────────
+// Cada gol precisa superar um limiar crescente: base + (gols_já_marcados × penalty)
+// Quanto mais gols já no placar, mais difícil marcar o próximo.
+function calcGolThreshold(base, penaltyPerGol, golsJaMarcados) {
+  return Math.min(98, base + golsJaMarcados * penaltyPerGol);
+}
+
+function calcMatchDifficulty(myOvr, advOvr) {
+  const delta = advOvr - myOvr; // positivo = adversário melhor
+
+  if (delta <= -15) return {
+    label:'Fácil',
+    golChanceBonus:15, defBonus:20,
+    advGolBase:72,  advGolPenalty:15,
+    myGolBase:30,   myGolPenalty:12,
+  };
+  if (delta <= -5) return {
+    label:'Normal',
+    golChanceBonus:8, defBonus:10,
+    advGolBase:68,  advGolPenalty:14,
+    myGolBase:38,   myGolPenalty:14,
+  };
+  if (delta <= 5) return {
+    label:'Equilibrado',
+    golChanceBonus:0, defBonus:0,
+    advGolBase:62,  advGolPenalty:13,
+    myGolBase:45,   myGolPenalty:16,
+  };
+  if (delta <= 15) return {
+    label:'Difícil',
+    golChanceBonus:-8, defBonus:-10,
+    advGolBase:55,  advGolPenalty:12,
+    myGolBase:52,   myGolPenalty:18,
+  };
+  return {
+    label:'Muito Difícil',
+    golChanceBonus:-15, defBonus:-20,
+    advGolBase:48,  advGolPenalty:11,
+    myGolBase:60,   myGolPenalty:20,
+  };
+}
+
+function genSquad(teamName, isPlayerTeam, playerOnBench) {
+  if (G?.perfil === 'treinador' && isPlayerTeam) {
+    const persistente = squadFromElencoPersistente(teamName);
+    if (persistente) return persistente;
+  }
+  const squad = [];
+  for (let i = 0; i < 11; i++) {
+    const isMe = isPlayerTeam && !playerOnBench && i === 10;
+    squad.push({
+      name:     isMe ? G.nome : NPC_NAMES[i],
+      pos:      isMe ? (G.posicao||'CF') : NPC_POS[i],
+      ovr:      isMe ? (G.ovr||70) : NPC_OVR[i] + rng(-4, 4),
+      num:      isMe ? (G.camisa||10) : NPC_NUMS[i],
+      energia:  isMe ? G.energia : 80 + rng(-15, 10),
+      isPlayer: isMe,
+      inGame:   true,
+      subbedOut:false,
+    });
+  }
+  // 5 reservas
+  for (let i = 0; i < 5; i++) {
+    const isMe = isPlayerTeam && playerOnBench && i === 0;
+    squad.push({
+      name:     isMe ? G.nome : SUB_NAMES[i],
+      pos:      isMe ? (G.posicao||'CF') : SUB_POS[i],
+      ovr:      isMe ? (G.ovr||70) : NPC_OVR[i % 11] - 5 + rng(-3, 3),
+      num:      isMe ? (G.camisa||10) : NPC_NUMS[11 + i],
+      energia:  isMe ? G.energia : 100,
+      isPlayer: isMe,
+      inGame:   false,
+      subbedOut:false,
+    });
+  }
+  return squad;
+}

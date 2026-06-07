@@ -1,0 +1,634 @@
+
+// ─── SETUP ──────────────────────────────────────────────────
+function setupMatchScreen(semana) {
+  if (!G) return;
+  stopRenderLoop();
+  clearTimeout(_matchTimer);
+  G.reuniaoFeita = false;
+  G.buffReuniao = null;
+  G.palestraUsada = false;
+
+  const adv  = semana.adversario || pickRandom(LIGAS[G.liga]?.clubes || CLUBES_PEQUENOS);
+  const home = semana.isHome ? G.clube : adv;
+  const away = semana.isHome ? adv     : G.clube;
+  if (semana.rodada) G.rodada = semana.rodada;
+  aplicarPartidaAsset(semana);
+
+  document.getElementById('m-league').textContent  = G.liga;
+  document.getElementById('m-day').textContent     = 'Rodada ' + (semana.rodada||1);
+  document.getElementById('m-home').textContent    = home;
+  document.getElementById('m-away').textContent    = away;
+  ['m-hs','m-as'].forEach(id => document.getElementById(id).textContent='0');
+  document.getElementById('m-min').textContent     = 'PRÉ-JOGO';
+  document.getElementById('m-prog').style.width    = '0%';
+  document.getElementById('match-log').innerHTML   = '';
+  const momentCard = document.getElementById('moment-card');
+  if (momentCard) momentCard.className = 'moment-card';
+  const momentKicker = document.getElementById('moment-kicker');
+  const momentText = document.getElementById('moment-text');
+  const momentMeta = document.getElementById('moment-meta');
+  if (momentKicker) momentKicker.textContent = 'Momento do jogo';
+  if (momentText) momentText.textContent = 'Pre-jogo: os times ainda estao se estudando.';
+  if (momentMeta) momentMeta.textContent = 'A partida agora sera narrada por lances, sem o campo grafico.';
+  document.getElementById('btn-play').style.display   = 'flex';
+  document.getElementById('btn-pause').style.display  = 'none';
+  document.getElementById('btn-lineup').style.display = 'none';
+  const lp = document.getElementById('lineup-panel');
+  if (lp) lp.style.display = 'none';
+
+  // Decidir se começa no banco (energia 15-25 = 60% chance banco)
+  const en = G.energia;
+  const onBench = G.perfil !== 'treinador' && en >= 15 && en <= 25 && Math.random() < 0.60;
+
+  const squadA = semana.isHome ? genSquad(home, true,  onBench)
+                               : genSquad(home, false, false);
+  const squadB = semana.isHome ? genSquad(away, false, false)
+                               : genSquad(away, true,  onBench);
+
+  const mkPl = (bases) => bases.map(([x,y]) => ({
+    x, y, bx:x, by:y, tx:x, ty:y,
+    retargetIn: Math.floor(Math.random()*40)+10,
+    spd: 0.022 + Math.random()*0.010
+  }));
+
+  const subLimit = SUB_LIMIT_MAP[G.liga] || SUB_LIMIT_MAP.default;
+  const mySquad  = semana.isHome ? squadA : squadB;
+  const playerInGame = !onBench;
+
+  // Calcular OVR e dificuldade ANTES de criar o MS
+  const mySquadForOvr  = semana.isHome ? squadA : squadB;
+  const advSquadForOvr = semana.isHome ? squadB : squadA;
+  const myOvr  = calcTeamOvr(mySquadForOvr);
+  const advOvr = calcTeamOvr(advSquadForOvr);
+  const matchDiff = calcMatchDifficulty(myOvr, advOvr);
+
+  MS = {
+    home, away, isHome: semana.isHome, semana,
+    hs:0, as:0, min:0,
+    running:false, done:false, waitingChoice:false, paused:false,
+    squadA, squadB, subLimit,
+    subsUsedA:0, subsUsedB:0,
+    playerInGame,
+    onBench,
+    plA: mkPl(BASE_HOME),
+    plB: mkPl(BASE_AWAY),
+    bx:0.5, by:0.5,
+    carrier:{ team:'A', idx:10 },
+    passTimer: 180,
+    golFx: null,
+    frame: 0,
+    lpTab: 'home',
+    // Dificuldade e OVRs calculados
+    myOvr, advOvr, matchDiff,
+    // Foco do jogador: 'equilibrado' | 'ataque' | 'transicao' | 'defesa'
+    playerFocus: 'equilibrado',
+    // Placar atual de gols por time (para cap)
+    golsA: 0, golsB: 0,
+    // Modificadores semi-final: nosso ataque/meio/defesa e pressao adversaria
+    mods: { ataque:0, meio:0, defesa:0, advAtaque:0, advMeio:0, advDefesa:0 },
+    _lastModReason: '',
+    // Flag do intervalo (min 45)
+    _halfTimeDone: false,
+    // Snap parcial da bola ao trocar portador
+    _ballSnap: 0,
+    // Energia inicial do jogador ao entrar na partida
+    _energiaInicio: G.energia,
+    _token: null, // preenchido em startMatch
+    // Se player está no banco (para calcular recuperação correta)
+    _playerSubstituido: false,
+    _energiaAoSair: null,
+    // Stats por partida para contratos
+    _golsDoPlayer: 0, _assistsDoPlayer: 0,
+    // Notas da partida, mantidas apenas durante o jogo
+    ratings: { player:6.0, teamA:{}, teamB:{}, events:[] },
+  };
+
+  stopRenderLoop();
+
+  // Mostrar reunião pré-jogo (apenas para jogadores, não treinador)
+  const reuniaoEl = document.getElementById('reuniao-container');
+  if (reuniaoEl) {
+    if (G.perfil !== 'treinador') {
+      reuniaoEl.style.display = 'block';
+      renderReuniaoPreJogo();
+    } else {
+      reuniaoEl.style.display = 'none';
+    }
+  }
+  // Esconder focus-bar no pré-jogo; mostrar diff info
+  const fbEl = document.getElementById('focus-bar');
+  if (fbEl) fbEl.style.display = 'none';
+  // Pequeno delay para garantir que MS.matchDiff já existe
+  setTimeout(showMatchDiffInfo, 50);
+
+  if (onBench) {
+    setTimeout(() => showToast('🪑 Energia baixa — você começa no banco! Pode entrar a qualquer momento.'), 600);
+  }
+}
+
+// ─── LOOP rAF ────────────────────────────────────────────────
+let _rAFRunning = false; // flag global para evitar loops duplos
+
+function startRenderLoop() {
+  // Cancelar loop anterior de forma completa
+  cancelAnimationFrame(_rAF);
+  _rAF = null;
+  _rAFRunning = false;
+
+  // Pequeno delay garante que o frame anterior foi de fato cancelado
+  setTimeout(() => {
+    _rAFRunning = true;
+    (function frame() {
+      if (!_rAFRunning) return; // loop morreu — não continuar
+      if (!MS) { _rAFRunning = false; return; }
+      if (MS.running && !MS.done && !MS.paused) updatePhysics();
+      drawPitch();
+      _rAF = requestAnimationFrame(frame);
+    })();
+  }, 16);
+}
+
+function stopRenderLoop() {
+  _rAFRunning = false;
+  cancelAnimationFrame(_rAF);
+  _rAF = null;
+}
+
+// ─── FÍSICA ──────────────────────────────────────────────────
+function updatePhysics() {
+  MS.frame++;
+  const cTeam  = MS.carrier.team;
+  const cIdx   = MS.carrier.idx;
+  const plOwn  = cTeam === 'A' ? MS.plA : MS.plB;
+  const plOpp  = cTeam === 'A' ? MS.plB : MS.plA;
+  const carrier = plOwn[cIdx];
+  if (!carrier) return; // guard contra idx inválido
+  const atkDir = cTeam === 'A' ? 1 : -1;
+
+  // ── Time com a bola ──────────────────────────────────────────
+  plOwn.forEach((pl, i) => {
+    pl.retargetIn--;
+    if (pl.retargetIn <= 0) {
+      if (i === 0) {
+        // Goleiro: oscila na base, nunca avança muito
+        pl.tx = pl.bx + (Math.random()-0.5)*0.04;
+        pl.ty = pl.by + (Math.random()-0.5)*0.10;
+        pl.retargetIn = 80 + Math.floor(Math.random()*60);
+      } else if (i === cIdx) {
+        // Portador: avança com variação LATERAL real — não vai só p/ canto
+        // Mistura a posição base com a posição atual para manter fluido
+        const baseX = pl.bx;
+        const advance = atkDir * (0.05 + Math.random()*0.07); // 5-12% p/ frente
+        const lateral = (Math.random()-0.5)*0.22; // variação lateral ampla
+        pl.tx = Math.min(0.88, Math.max(0.12, baseX + advance));
+        pl.ty = Math.max(0.06, Math.min(0.94, pl.by + lateral));
+        pl.retargetIn = 35 + Math.floor(Math.random()*35);
+      } else {
+        // Companheiros: abrem espaço proporcional à posição deles, sem imã
+        const dist = Math.hypot(pl.bx - carrier.x, pl.by - carrier.y);
+        if (dist < 0.20) {
+          // Próximo do portador: abrir para criar opção de passe
+          const angle = Math.atan2(pl.by - carrier.y, pl.bx - carrier.x);
+          const spread = 0.12 + Math.random()*0.08;
+          pl.tx = Math.max(0.08, Math.min(0.92, pl.bx + Math.cos(angle)*spread + atkDir*0.04));
+          pl.ty = Math.max(0.06, Math.min(0.94, pl.by + Math.sin(angle)*spread));
+        } else {
+          // Longe: mover suavemente para apoio sem convergir
+          pl.tx = pl.bx + atkDir*0.03 + (Math.random()-0.5)*0.05;
+          pl.ty = pl.by + (Math.random()-0.5)*0.05;
+        }
+        pl.retargetIn = 55 + Math.floor(Math.random()*65);
+      }
+    }
+    // Velocidade: carrier mais rápido, companheiros moderados
+    const f = (i === cIdx) ? pl.spd*1.5 : pl.spd*0.45;
+    pl.x += (pl.tx - pl.x) * f;
+    pl.y += (pl.ty - pl.y) * f;
+  });
+
+  // ── Time adversário ──────────────────────────────────────────
+  // Selecionar DOIS marcadores (não só um) para distribuir pressão
+  const dists = plOpp.map((pl,i) => i===0 ? Infinity : Math.hypot(pl.x-carrier.x, pl.y-carrier.y));
+  const sorted = dists.map((d,i)=>({d,i})).sort((a,b)=>a.d-b.d);
+  const marker1 = sorted[0]?.i || 1; // marcador principal
+  const marker2 = sorted[1]?.i || 2; // marcador secundário (menos agressivo)
+
+  plOpp.forEach((pl, i) => {
+    pl.retargetIn--;
+    if (i === 0) {
+      if (pl.retargetIn <= 0) {
+        pl.tx = pl.bx + (Math.random()-0.5)*0.04;
+        pl.ty = pl.by + (Math.random()-0.5)*0.08;
+        pl.retargetIn = 80 + Math.floor(Math.random()*60);
+      }
+    } else if (pl.retargetIn <= 0) {
+      if (i === marker1) {
+        // Principal: interceptar com deslocamento — não teletransportar
+        // Vai para um ponto um pouco à frente do carrier, não em cima dele
+        const intercX = carrier.x + (-atkDir)*0.05 + (Math.random()-0.5)*0.06;
+        const intercY = carrier.y + (Math.random()-0.5)*0.08;
+        pl.tx = Math.max(0.04, Math.min(0.96, intercX));
+        pl.ty = Math.max(0.04, Math.min(0.96, intercY));
+        pl.retargetIn = 25 + Math.floor(Math.random()*25);
+      } else if (i === marker2) {
+        // Secundário: cobrir espaço próximo ao carrier, mais suave
+        const supportX = carrier.x + (-atkDir)*0.12 + (Math.random()-0.5)*0.10;
+        const supportY = carrier.y + (Math.random()-0.5)*0.15;
+        pl.tx = Math.max(0.04, Math.min(0.96, supportX));
+        pl.ty = Math.max(0.04, Math.min(0.96, supportY));
+        pl.retargetIn = 40 + Math.floor(Math.random()*30);
+      } else {
+        // Resto: cobrir espaço da defesa de forma organizada
+        pl.tx = pl.bx + (-atkDir)*0.04 + (Math.random()-0.5)*0.06;
+        pl.ty = pl.by + (Math.random()-0.5)*0.07;
+        pl.retargetIn = 60 + Math.floor(Math.random()*60);
+      }
+    }
+    // Marcador principal mais rápido mas nunca ultrapassando a velocidade natural
+    const f = (i===marker1) ? pl.spd*1.1 : (i===marker2) ? pl.spd*0.7 : pl.spd*0.45;
+    pl.x += (pl.tx - pl.x) * f;
+    pl.y += (pl.ty - pl.y) * f;
+  });
+
+  // ── Bola → portador (lerp mais ágil, sem salto brusco) ──────
+  // Quando troca de equipe, snap parcial para evitar teleporte
+  const lerpBall = MS._ballSnap ? 0.25 : 0.030;
+  if (MS._ballSnap && --MS._ballSnap <= 0) MS._ballSnap = 0;
+  MS.bx += (carrier.x - MS.bx) * lerpBall + (Math.random()-0.5)*0.002;
+  MS.by += (carrier.y - MS.by) * lerpBall + (Math.random()-0.5)*0.002;
+  MS.bx = Math.max(0.02, Math.min(0.98, MS.bx));
+  MS.by = Math.max(0.02, Math.min(0.98, MS.by));
+
+  // ── Passe ────────────────────────────────────────────────────
+  MS.passTimer--;
+  if (MS.passTimer <= 0) doPass();
+
+  // Efeito gol
+  if (MS.golFx) { MS.golFx.t++; if (MS.golFx.t>180) MS.golFx=null; }
+
+  // Desgaste de energia: movido para tickMatch (relógio real do jogo)
+}
+
+// ─── PASSE ───────────────────────────────────────────────────
+// Linhas de jogadores: 0=GK 1-4=DEF 5-7=MEI 8-10=ATA
+const LINES = { def:[1,2,3,4], mei:[5,6,7], ata:[8,9,10] };
+function lineOf(idx) {
+  if (idx<=0) return 'gk';
+  if (idx<=4) return 'def';
+  if (idx<=7) return 'mei';
+  return 'ata';
+}
+// Probabilidade de progressão por linha
+// def → mei: 55%, def → ata: 10%, def → def: 30%, roubo: 5%
+// mei → ata: 45%, mei → mei: 35%, mei → def: 15%, roubo: 5%
+// ata → ata: 40%, ata → mei: 30%, roubo: 30% (pressão alta)
+function doPass() {
+  const entros = G.entrosamento||30;
+  const entrosFactor = entros/100;
+  // Roubo: base 18%, modificado por entrosamento
+  const STEAL = Math.max(0.06, Math.min(0.32, 0.18 - entrosFactor*0.07 + (1-entrosFactor)*0.06));
+
+  let newTeam = MS.carrier.team, newIdx = MS.carrier.idx;
+  const sq = newTeam==='A' ? MS.squadA : MS.squadB;
+  const line = lineOf(newIdx);
+
+  if (Math.random() < STEAL) {
+    // Roubo: nova equipe recebe em linha defensiva/meia (não sempre LW)
+    newTeam = newTeam==='A' ? 'B' : 'A';
+    const stealLine = Math.random() < 0.5 ? LINES.def : LINES.mei;
+    newIdx = stealLine[Math.floor(Math.random()*stealLine.length)];
+    const recov = (newTeam==='A'?MS.squadA:MS.squadB)[newIdx];
+    logMatch(pickRandom(['Interceptação!','Bola recuperada!','Roubou no meio!']) + (recov ? ' Camisa '+recov.num+'.' : ''), 'hl');
+    MS._ballSnap = 6; // snap parcial da bola para evitar teleporte
+  } else {
+    // Passe normal: progressão probabilística por linha
+    const r = Math.random();
+    if (line === 'def') {
+      if      (r < 0.55) newIdx = LINES.mei[Math.floor(Math.random()*LINES.mei.length)];
+      else if (r < 0.65) newIdx = LINES.ata[Math.floor(Math.random()*LINES.ata.length)];
+      else               newIdx = LINES.def[Math.floor(Math.random()*LINES.def.length)];
+    } else if (line === 'mei') {
+      if      (r < 0.45) newIdx = LINES.ata[Math.floor(Math.random()*LINES.ata.length)];
+      else if (r < 0.80) newIdx = LINES.mei[Math.floor(Math.random()*LINES.mei.length)];
+      else               newIdx = LINES.def[Math.floor(Math.random()*LINES.def.length)];
+    } else { // ata
+      if      (r < 0.40) newIdx = LINES.ata[Math.floor(Math.random()*LINES.ata.length)];
+      else if (r < 0.70) newIdx = LINES.mei[Math.floor(Math.random()*LINES.mei.length)];
+      else {
+        // Perde: vai para defesa adversária
+        newTeam = newTeam==='A' ? 'B' : 'A';
+        newIdx = LINES.def[Math.floor(Math.random()*LINES.def.length)];
+        const recov = (newTeam==='A'?MS.squadA:MS.squadB)[newIdx];
+        logMatch(pickRandom(['Bola perdida no ataque!','Saiu pela linha de fundo!','Goleiro pegou!']) + (recov?' Camisa '+recov.num+'.':''), '');
+        MS._ballSnap = 6;
+      }
+    }
+  }
+
+  // Garantir índice válido (nunca goleiro = 0)
+  newIdx = Math.max(1, Math.min(10, newIdx));
+  MS.carrier = { team:newTeam, idx:newIdx };
+  // Timer maior = menos passes por segundo = mais fluido
+  MS.passTimer = 150 + Math.floor(Math.random()*140);
+}
+
+// ─── DESGASTE DE ENERGIA ─────────────────────────────────────
+function drainMatchEnergy() {
+  // Drain dos NPCs (chamado periodicamente pelo rAF para manter energia dos NPCs)
+  const drain = Math.max(1, Math.round(rng(1, 2) * (MS._taticaEnergiaMult || 1)));
+  MS.squadA.forEach(p => { if (p.inGame && !p.isPlayer) p.energia = Math.max(0, p.energia - drain); });
+  MS.squadB.forEach(p => { if (p.inGame && !p.isPlayer) p.energia = Math.max(0, p.energia - drain); });
+  // O drain do player agora é feito em tickMatch (relógio fiel)
+  checkPlayerSubstitution();
+  const lp = document.getElementById('lineup-panel');
+  if (lp && lp.style.display !== 'none') renderLineupContent(MS.lpTab);
+}
+
+function checkPlayerSubstitution() {
+  if (!MS || !MS.playerInGame) return;
+  const myTeam   = MS.isHome ? MS.squadA : MS.squadB;
+  const subsUsed = MS.isHome ? MS.subsUsedA : MS.subsUsedB;
+  if (subsUsed >= MS.subLimit) return;
+  const me = myTeam.find(p => p.isPlayer && p.inGame);
+  if (!me) return;
+  // Substituição automática se energia baixa (fonte única: G.energia)
+  if (G.energia > 20) return;
+  if (Math.random() < 0.55) triggerPlayerSub(me);
+}
+
+function triggerPlayerSub(outPlayer) {
+  if (MS.waitingChoice) return;
+  MS.waitingChoice = true;
+  clearTimeout(_matchTimer);
+  const myTeam = MS.isHome ? MS.squadA : MS.squadB;
+  const sub = myTeam.find(p => !p.inGame && !p.subbedOut);
+  const overlay = document.getElementById('popup-overlay');
+  const minRestantes = 90 - MS.min;
+  document.getElementById('pm-content').innerHTML =
+    '<div class="pm-icon">🔄</div>' +
+    '<div class="pm-title">Substituição do Técnico!</div>' +
+    '<div class="pm-body">Camisa '+outPlayer.num+' ('+outPlayer.name+'), energia crítica: '+G.energia+'/'+energiaCap()+'\n\n' +
+    (sub ? 'Camisa '+sub.num+' ('+sub.name+') pronto para entrar.' : 'Sem reservas disponíveis.')+
+    '\n\n⏱️ '+minRestantes+' minutos restantes.</div>' +
+    '<div class="pm-choices">' +
+    '<button class="pm-btn" onclick="acceptPlayerSub(true)"><span class="ch-icon">🪑</span><span class="ch-text">Aceitar — sair do jogo</span></button>' +
+    '<button class="pm-btn" onclick="acceptPlayerSub(false)"><span class="ch-icon">💪</span><span class="ch-text">Recusar — continuar em campo</span></button>' +
+    '<button class="pm-btn" onclick="acceptPlayerSubSim()"><span class="ch-icon">⏩</span><span class="ch-text">Simular e Pular — aceitar e ver resultado</span></button>' +
+    '</div>';
+  MS._subOut = outPlayer; MS._subIn = sub;
+  overlay.classList.add('active'); overlay.onclick = null;
+}
+
+function acceptPlayerSubSim() { acceptPlayerSub("sim"); }
+
+function acceptPlayerSub(accept) {
+  document.getElementById('popup-overlay').classList.remove('active');
+  document.getElementById('popup-overlay').onclick = closePopupOutside;
+  if (!MS) return;
+  const myTeam = MS.isHome ? MS.squadA : MS.squadB;
+
+  if (accept === 'sim') {
+    // Simular e Pular: aceitar sub + finalizar jogo em modo simulado
+    if (MS._subIn) {
+      MS._subOut.inGame = false; MS._subOut.subbedOut = true;
+      MS._subIn.inGame  = true;
+      MS.playerInGame   = false;
+      if (MS.isHome) MS.subsUsedA++; else MS.subsUsedB++;
+      logMatch('🔄 Substituição! Camisa '+MS._subOut.num+' sai → camisa '+MS._subIn.num+' entra.', '');
+      G.energia = Math.min(energiaCap(), G.energia + 8);
+    } else {
+      MS.playerInGame = false;
+    }
+    MS._subOut = null; MS._subIn = null;
+    MS.waitingChoice = false;
+    simularRestoDaPartida();
+    return;
+  }
+
+  if (accept && MS._subIn) {
+    MS._subOut.inGame = false; MS._subOut.subbedOut = true;
+    MS._subIn.inGame  = true;
+    MS.playerInGame   = false;
+    if (MS.isHome) MS.subsUsedA++; else MS.subsUsedB++;
+    logMatch('🔄 Substituição! Camisa '+MS._subOut.num+' sai → camisa '+MS._subIn.num+' entra.');
+    // Saiu: congelar energia atual + recuperar proporcionalmente aos mins no banco
+    MS._playerSubstituido = true;
+    const _enSaida = G.energia;
+    const minsRestantes = 90 - MS.min;
+    const recuperacaoBanco = Math.round(minsRestantes * 0.25); // ~0.25/min no banco
+    G.energia = Math.min(energiaCap(), G.energia + recuperacaoBanco);
+    updateEnergiaBar();
+    showToast('🪑 Saiu com '+_enSaida+'→ banco: +'+recuperacaoBanco+' → '+G.energia+'/'+energiaCap());
+  } else {
+    logMatch('💪 Camisa '+(MS._subOut?.num)+' recusa a substituição! Continua em campo.', 'hl');
+  }
+  MS._subOut = null; MS._subIn = null;
+  MS.waitingChoice = false;
+  scheduleNextTick(800);
+}
+
+// Simular o resto da partida rapidamente, sem interação
+function simularRestoDaPartida() {
+  if (!MS || MS.done) return;
+  clearTimeout(_matchTimer);
+  // Marcar que player foi substituído (energia já gerenciada)
+  MS._playerSubstituido = true;
+  showToast('⏩ Simulando o resto da partida...');
+  logMatch('⏩ [Simulação rápida ativada — sem mais eventos interativos]', 'hl');
+
+  const qual = mediaAtrs();
+  const diff = MS.matchDiff;
+
+  // Simular os minutos restantes: ~8-15 ticks de 4 min cada
+  const minsRestantes = 90 - MS.min;
+  const numTicks = Math.max(4, Math.ceil(minsRestantes / 5));
+
+  for (let t = 0; t < numTicks && MS.min < 90; t++) {
+    MS.min = Math.min(90, MS.min + rng(4, 7));
+    const roll = rng(1, 100);
+
+    // Gol do adversário
+    if (roll > 74) {
+      const advGols = MS.isHome ? MS.golsB : MS.golsA;
+      // Dado progressivo também na simulação rápida
+      const simAdvThreshold = calcGolThreshold(diff.advGolBase||62, diff.advGolPenalty||13, advGols);
+      if (rng(1,100) > simAdvThreshold) {
+          if (MS.isHome) { MS.as++; MS.golsB++; } else { MS.hs++; MS.golsA++; }
+          const oppSq = MS.isHome ? MS.squadB : MS.squadA;
+          const scorer = oppSq[rng(8,10)];
+          addNpcRating(getAdvTeamKey(), scorer.num, 0.9);
+          logMatch('⚽ GOL (sim)! '+(MS.isHome?MS.away:MS.home)+' — camisa '+scorer.num+' aos '+MS.min+"'", 'gol');
+          updateScore();
+        }
+    }
+    // Gol do nosso time (sem player — companheiros)
+    else if (roll > 58 && roll <= 74) {
+      const myGols = MS.isHome ? MS.golsA : MS.golsB;
+      const simMyThreshold = calcGolThreshold(diff.myGolBase||45, diff.myGolPenalty||16, myGols);
+      if (rng(1,100) > simMyThreshold) {
+        if (MS.isHome) { MS.hs++; MS.golsA++; } else { MS.as++; MS.golsB++; }
+        const mySq = MS.isHome ? MS.squadA : MS.squadB;
+        const scorer = mySq[rng(8,10)];
+        addNpcRating(getMyTeamKey(), scorer.num, 0.9);
+        logMatch('⚽ GOL (sim)! '+(MS.isHome?MS.home:MS.away)+' — camisa '+scorer.num+' aos '+MS.min+"'", 'gol');
+        updateScore();
+      }
+    } else {
+      // Lance genérico
+      if (Math.random() < 0.4) {
+        logMatch(pickRandom(['Pressão no ataque (sim).','Bola na trave (sim).','Defesa do goleiro (sim).','VAR consultado (sim).'])+' '+MS.min+"'", '');
+      }
+    }
+  }
+
+  MS.min = 90;
+  document.getElementById('m-min').textContent  = "90'";
+  document.getElementById('m-prog').style.width = '100%';
+  logMatch('🏁 Apito final (simulação)!', 'hl');
+  endMatch();
+}
+
+// ─── TICK DO JOGO ─────────────────────────────────────────────
+const NOME_EVENTO = {
+  gol_chance: 'Finalização',
+  duelo:      'Duelo/Drible',
+  defesa:     'Defesa',
+  ligacao:    'Criação/Passe',
+};
+function calcBonusReuniao(discursoKey, roll) {
+  const disc    = DISCURSOS[discursoKey];
+  const statVal = discursoKey === 'lideranca_disc'   ? (G.lideranca||5)
+                : discursoKey === 'compostura_disc'  ? (G.compostura||5)
+                : discursoKey === 'audacia'           ? Math.floor((G.fama||5)/5)        // 0-20 via fama
+                : discursoKey === 'visao'             ? Math.floor((G.entrosamento||30)/5) // 0-20 via entrosamento
+                : discursoKey === 'intimidacao'       ? Math.floor((G.compostura||5)*0.7)  // 70% compostura
+                : 0;
+  const moralMod  = Math.floor(((G.moral||70) - 50) / 10); // -2 a +5
+  const liderBonus = Math.floor((G.lideranca||5) / 4);     // 0-5
+  const total = roll + Math.floor(statVal * 0.55) + moralMod + liderBonus;
+  const bonus = roll === 20 ? 6 : Math.max(0, Math.min(5, Math.floor((total - 17) / 4)));
+
+  // Falha crítica: roll 1 + compostura baixa = debuff
+  const falhaCrit = roll === 1 && (G.compostura||5) < 8;
+
+  return {
+    disc, bonus: falhaCrit ? -3 : Math.max(0, bonus),
+    roll, total, falhaCrit,
+    duracao: 90, // dura a partida toda (em "minutos de jogo")
+  };
+}
+
+// Verificar se evento é afetado pelo buff ativo
+function getBonusEvento(tipo) {
+  if (!MS?.buffReuniao) return 0;
+  const b = MS.buffReuniao;
+  if (!b.disc || b.bonus === 0) return 0;
+  const afeta = b.disc.eventosAfetados?.includes(tipo);
+  return afeta ? b.bonus : 0;
+}
+
+// Verificar se arquétipo do player é afetado pelo buff
+function getBonusArquetipo() {
+  if (!MS?.buffReuniao || !G?.arquetipo) return 0;
+  const b = MS.buffReuniao;
+  if (!b.disc) return 0;
+  if (b.disc.arquetiposAfetados?.length === 0) return Math.floor(b.bonus/2); // liderança/compostura: metade
+  return b.disc.arquetiposAfetados?.includes(G.arquetipo) ? b.bonus : 0;
+}
+
+// Limites praticos para caber no popup da partida:
+// desc: ate 160 caracteres. choices[].text: ate 34 caracteres.
+// Se passar disso, o codigo corta com "..." para nao quebrar a tela.
+const MATCH_EVENT_LIMITS = {
+  desc: 160,
+  choiceText: 34
+};
+
+function clampEventText(text, max) {
+  text = String(text || '').trim();
+  return text.length > max ? text.slice(0, Math.max(0, max - 3)).trim() + '...' : text;
+}
+
+const MATCH_EVENTS = {
+
+  // ── ATAQUE: finalização direta ──────────────────────────────
+  gol_chance: [
+    { desc:'Você ficou cara a cara com o goleiro! Uma chance de ouro!', choices:[
+      {icon:'🚀',text:'Chutar forte no canto',       skill:'finalizacao', dif:55, resultType:'gol'},
+      {icon:'🎩',text:'Driblar o goleiro',            skill:'drible',      dif:65, resultType:'gol'},
+      {icon:'🪄',text:'Tentar cavadinha',             skill:'finalizacao', dif:50, resultType:'gol'}
+    ]},
+    { desc:'Cruzamento na área — você está completamente livre!', choices:[
+      {icon:'🤯',text:'Cabecear com força',           skill:'cabecio',     dif:50, resultType:'gol'},
+      {icon:'⚡',text:'Meia-lua de primeira',          skill:'finalizacao', dif:60, resultType:'gol'},
+      {icon:'🦶',text:'Controlar e chutar',           skill:'drible',      dif:45, resultType:'gol'}
+    ]},
+    { desc:'Pênalti marcado! Você vai bater.', choices:[
+      {icon:'🎯',text:'Canto esquerdo colocado',      skill:'finalizacao', dif:45, resultType:'gol'},
+      {icon:'💥',text:'Centro com força máxima',      skill:'fisico',      dif:50, resultType:'gol'},
+      {icon:'🪄',text:'Cavadinha no centro',          skill:'mental',      dif:58, resultType:'gol'}
+    ]},
+    { desc:'Cobrança de falta na entrada da área — posição perfeita!', choices:[
+      {icon:'🌀',text:'Colocar no ângulo',            skill:'finalizacao', dif:62, resultType:'gol'},
+      {icon:'💥',text:'Bombar com força',             skill:'fisico',      dif:55, resultType:'gol'},
+      {icon:'🎯',text:'Passar por baixo da barreira', skill:'chuteLongo',  dif:60, resultType:'gol'}
+    ]}
+  ],
+
+  // ── DUELO: drible / progressão ──────────────────────────────
+  duelo: [
+    { desc:'Duelo individual com o zagueiro camisa {opp}. Um contra um!', choices:[
+      {icon:'💨',text:'Usar velocidade por fora',     skill:'velocidade',  dif:55, resultType:'chance'},
+      {icon:'🎩',text:'Driblar pelo meio',            skill:'drible',      dif:62, resultType:'chance'},
+      {icon:'⬆️',text:'Tabela com o companheiro',    skill:'mental',      dif:48, resultType:'assist'}
+    ]},
+    { desc:'Você está marcado de perto — precisa criar espaço!', choices:[
+      {icon:'🔄',text:'Girar e criar espaço',         skill:'drible',      dif:58, resultType:'chance'},
+      {icon:'🏃',text:'Correr para espaço livre',     skill:'velocidade',  dif:52, resultType:'chance'},
+      {icon:'🤝',text:'Baixar e pedir a bola',        skill:'posicionamento',dif:44,resultType:'assist'}
+    ]},
+    { desc:'Contragolpe! Você tem espaço à frente com um adversário tentando te alcançar.', choices:[
+      {icon:'💨',text:'Avançar em velocidade máxima', skill:'aceleracao',  dif:52, resultType:'chance'},
+      {icon:'🎩',text:'Driblar e entrar na área',     skill:'drible',      dif:60, resultType:'gol'},
+      {icon:'🔀',text:'Lançar o companheiro livre',   skill:'passeCurto',  dif:45, resultType:'assist'}
+    ]}
+  ],
+
+  // ── DEFESA: recuperação / bloqueio ──────────────────────────
+  defesa: [
+    { desc:'Adversário camisa {opp} avança em seu setor — pressão total!', choices:[
+      {icon:'🛡️',text:'Fechar e dividir',            skill:'defesa',      dif:55, resultType:'interceptacao'},
+      {icon:'🏃',text:'Perseguir e pressionar',       skill:'velocidade',  dif:50, resultType:'recuperacao'},
+      {icon:'🧠',text:'Posicionar e esperar',         skill:'posicionamento',dif:48,resultType:'bloqueio'}
+    ]},
+    { desc:'Cruzamento venenoso na área — você precisa cortar!', choices:[
+      {icon:'✊',text:'Cabecear para afastar',        skill:'cabecio',     dif:55, resultType:'bloqueio'},
+      {icon:'🛡️',text:'Interceptar com o corpo',     skill:'defesa',      dif:52, resultType:'recuperacao'},
+      {icon:'🧠',text:'Antecipar e sair com a bola', skill:'posicionamento',dif:60,resultType:'recuperacao'}
+    ]},
+    { desc:'Chute adversário vindo em sua direção — bloqueie!', choices:[
+      {icon:'🦵',text:'Bloquear com a perna',        skill:'defesa',      dif:50, resultType:'bloqueio'},
+      {icon:'💨',text:'Jogar para escanteio',        skill:'velocidade',  dif:44, resultType:'bloqueio'},
+      {icon:'🥅',text:'Desviar para o goleiro',      skill:'posicionamento',dif:48,resultType:'bloqueio'}
+    ]}
+  ],
+
+  // ── LIGAÇÃO: passe chave / visão de jogo ───────────────────
+  ligacao: [
+    { desc:'Você está no meio-campo com espaço — pode lançar o ataque!', choices:[
+      {icon:'🔭',text:'Lançamento longo para o atacante',  skill:'passeLongo',  dif:55, resultType:'assist'},
+      {icon:'🔀',text:'Passe em profundidade',             skill:'passeCurto',  dif:50, resultType:'assist'},
+      {icon:'🧠',text:'Conduzir e esperar a jogada',       skill:'mental',      dif:45, resultType:'chance'}
+    ]},
+    { desc:'Jogada ensaiada no escanteio — você precisa cobrar!', choices:[
+      {icon:'⚡',text:'Cruzamento tenso na primeira trave',skill:'cruzamento',  dif:55, resultType:'assist'},
+      {icon:'🎯',text:'Colocar na cabeça do pivô',        skill:'passeLongo',  dif:50, resultType:'assist'},
+      {icon:'🔀',text:'Passe curto para o meião',         skill:'passeCurto',  dif:44, resultType:'chance'}
+    ]},
+    { desc:'Você recebeu a bola costurada por trás da defesa!', choices:[
+      {icon:'💨',text:'Partir em velocidade',              skill:'velocidade',  dif:55, resultType:'chance'},
+      {icon:'🔀',text:'Dar de primeira pro centroavante',  skill:'passeCurto',  dif:48, resultType:'assist'},
+      {icon:'🎩',text:'Driblar o goleiro que saiu',        skill:'drible',      dif:68, resultType:'gol'}
+    ]}
+  ]
+};
