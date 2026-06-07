@@ -1,0 +1,32 @@
+{
+  "version": "fase13_preview_v2",
+  "optional": true,
+  "fallbackMode": "css-icons",
+  "basePath": "assets/img/",
+  "assets": [
+    { "id": "bg_create_pitch", "path": "backgrounds/Pitch2.png", "status": "ready", "use": "Tela de criacao" },
+    { "id": "bg_home_stadium", "path": "backgrounds/Pitch1.png", "status": "ready", "use": "Home/perfil" },
+    { "id": "bg_match_day", "path": "backgrounds/Pitch1.png", "status": "ready", "use": "Partida de dia" },
+    { "id": "bg_match_night", "path": "backgrounds/Pitch2.png", "status": "ready", "use": "Partida a noite" },
+    { "id": "bg_match_dusk", "path": "backgrounds/Pitch3.png", "status": "ready", "use": "Partida ao entardecer" },
+    { "id": "bg_match_pitch", "path": "backgrounds/Pitch3.png", "status": "fallback", "use": "Tela de partida sem contexto" },
+    { "id": "bg_match_tunnel", "path": "backgrounds/tunnel.png", "status": "ready", "use": "Reuniao pre-jogo e tunel de entrada" },
+    { "id": "bg_media_room", "path": "backgrounds/media_room1.png", "status": "ready", "use": "Midia/entrevistas" },
+    { "id": "bg_media_room_alt", "path": "backgrounds/media_room2.png", "status": "ready", "use": "Midia/entrevistas variante" },
+    { "id": "bg_training_ground", "path": "backgrounds/training_ground1.png", "status": "ready", "use": "Treino" },
+    { "id": "bg_training_ground_alt1", "path": "backgrounds/training_ground2.png", "status": "ready", "use": "Treino variante" },
+    { "id": "bg_training_ground_alt2", "path": "backgrounds/training_ground3.png", "status": "ready", "use": "Treino variante" },
+    { "id": "ui_ball_mark", "path": "ui/Ball.png", "status": "ready", "use": "Logo pequeno e marcador visual" },
+    { "id": "ui_news_flash", "path": "ui/News.png", "status": "ready", "use": "Noticias importantes e midia" },
+    { "id": "life_simple_room", "path": "lifestyle/simple_room1.png", "status": "ready", "use": "Moradia simples" },
+    { "id": "life_simple_room_alt", "path": "lifestyle/simple_room2.png", "status": "ready", "use": "Moradia simples variante" },
+    { "id": "life_apartment", "path": "lifestyle/apartament_room1.png", "status": "ready", "use": "Apartamento" },
+    { "id": "life_apartment_alt", "path": "lifestyle/apartament_room2.png", "status": "ready", "use": "Apartamento variante" },
+    { "id": "life_house", "path": "lifestyle/house_room1.png", "status": "ready", "use": "Casa familiar" },
+    { "id": "life_house_alt", "path": "lifestyle/house_room2.png", "status": "ready", "use": "Casa familiar variante" },
+    { "id": "life_mansion", "path": "lifestyle/mansion1.png", "status": "ready", "use": "Mansao" },
+    { "id": "life_mansion_alt", "path": "lifestyle/mansion2.png", "status": "ready", "use": "Mansao variante" },
+    { "id": "player_avatar_generic", "path": null, "status": "pending", "use": "Futura customizacao de aparencia do jogador" },
+    { "id": "coach_avatar_generic", "path": null, "status": "pending", "use": "Futura customizacao de aparencia do treinador" }
+  ]
+}
