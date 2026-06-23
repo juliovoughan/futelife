@@ -6,6 +6,113 @@ Convencao de versao: `x.yz`
 - `y`: pequenas mecanicas adicionadas, removidas ou alteradas.
 - `z`: bug fixes, balanceamento pontual e correcoes de integridade.
 
+## 3.51 - Auditoria de Fluxos da Etapa 17
+
+- Calendario, agenda, selecao e mercado foram ligados ao shell lateral e ao sistema de saves.
+- Mantido adaptador `passarSemana()` para eventos antigos, agora avançando um dia sem duplicar pagamentos semanais.
+- Saves da versao 11 migram para datas reais preservando rodada, resultados e tabela.
+
+## 3.50 - Datas FIFA e Amistosos
+
+- Datas FIFA entram no calendario regional e podem gerar convocacao por OVR, fama, idade e nacionalidade.
+- Convocados desbloqueiam a aba Selecao, grupo procedural e amistoso internacional agendado.
+- Jogos internacionais nao alteram a tabela do clube e concedem bonus proprio de fama.
+
+## 3.40 - Energia, Lesoes e Intervalo
+
+- Escalacao usa faixas graduais de energia; atletas abaixo de 30 raramente iniciam.
+- Risco de lesao em partida agora varia de 2% a 70% conforme a energia.
+- Intervalo recupera 15 pontos para quem esta em campo e 20 para o banco, com trocas de titulares cansados.
+
+## 3.30 - Sondagens e Metricas Avancadas
+
+- Pedidos ao agente levam tres dias e dependem de OVR, fama, idade, agente, xG e xA recentes.
+- Sondagens oferecem objetivos facil, medio e dificil, individuais ou combinados.
+- Acordos fora da janela aguardam a abertura; passes livres podem negociar imediatamente.
+
+## 3.20 - Agenda Pessoal
+
+- Dias livres aceitam viagem, festa, familia e fisioterapia com custos e efeitos proprios.
+- Compromissos nao podem ocupar dias de partida e sao processados no avanço diario.
+
+## 3.10 - Calendario Interativo
+
+- Nova aba mensal mostra partidas, janelas, Datas FIFA, feriados e compromissos pessoais.
+- Dias de jogo abrem previa com mando, OVR, forma, baixas e probabilidades.
+
+## 3.00 - Motor Diario e Calendarios Regionais
+
+- O tempo passa por dias reais, encerrando a sequencia artificial de uma partida por passo.
+- Brasil usa temporada anual; ligas europeias usam ciclo julho-junho.
+- Salarios, custos, patrocinios, cursos e limites semanais continuam processados uma vez por semana.
+
+## 2.31 - Etapa 16.3: Fechamento do Mercado
+
+- Corrigida a sidebar retraida que mantinha uma hitbox invisivel sobre o conteudo e bloqueava cliques no Mercado.
+- Calendarios agora reconhecem nomes de clubes com ou sem acentos e saves sem partidas sao reparados ao carregar.
+- Transferencias expiram sondagens antigas, regeneram tabela/calendario e limpam o adversario visual anterior.
+- Modal de negociacao ganhou rolagem propria em ecras mobile menores e o texto da janela foi corrigido.
+- Gestão de plantel atualiza o Mercado imediatamente, nao oferece compras com elenco cheio e gera nomes coerentes para candidatos.
+- Passe livre remove partidas futuras do ex-clube; aposentadoria inicia a carreira de treinador num clube real da liga de acesso.
+- Demissao e troca de emprego do treinador agora regeneram o calendario do novo clube.
+
+## 2.30 - Etapa 16.2: Negociacao de Contratos v2
+
+- Propostas agora incluem luvas de assinatura e paciencia maxima do clube.
+- Modal de negociacao ganhou ajustes diretos de salario, luvas, duracao e clausula.
+- Contrapropostas agora calculam exigencia, risco, chance aproximada e consumo de paciencia.
+- Clubes podem aceitar, contraofertar ou encerrar a negociacao conforme a dureza do pedido.
+- Ao assinar, luvas entram no saldo e a comissao do agente sai na assinatura, evitando bloqueios injustos quando as luvas cobrem a comissao.
+
+## 2.21 - Hotfix de Atualizacao da Sidebar
+
+- Energia, moral, fama e dinheiro da sidebar agora atualizam imediatamente quando `updateTopBar()` roda.
+- Eventos que usam apenas `updateEnergiaBar()` tambem atualizam a energia compacta da sidebar.
+- `updateEnergiaBar()` ficou protegido para chamadas fora de telas que tenham barra visual de energia.
+
+## 2.20 - Etapa 16.1: Mercado Central
+
+- A tela `Mercado` ganhou subabas separadas para jogador e treinador.
+- Jogador agora navega por `Contrato`, `Sondagens` e `Agente` sem a tela antiga empilhada.
+- Treinador ganhou abas `Plantel`, `Busca` e `Empregos`, com resumo de orcamento, janela, movimentos e diretoria.
+- A busca de jogadores do treinador agora aparece como lista pesquisavel na tela, reaproveitando limite de janela e orcamento existentes.
+- Adicionadas vagas de emprego procedurais para treinadores, com requisito de reputacao, salario, duracao e chance de candidatura.
+
+## 2.11 - Hotfix de Tooltips da Sidebar
+
+- Tooltips da barra lateral retraida agora usam caixa flutuante fora do drawer, evitando corte pelo `overflow`.
+- Status compactos funcionam com hover, foco e toque, mostrando nome e valor atual.
+- Removida a bolinha amarela de clima/hora do topo da barra retraida.
+
+## 2.10 - Etapa 16.0: Shell Lateral Mobile
+
+- Adicionado shell lateral recolhivel dentro da largura mobile, sem expandir o tamanho do jogo.
+- Barra fechada mostra status compactos por letras, com tooltip no hover.
+- Barra aberta mostra personagem, fundo da moradia, status, menu e atalhos de save/simulacao.
+- Navegacao foi renomeada para preparar a nova arquitetura: `Casa` virou `Painel` e `Agente` virou `Mercado`.
+- A tela de criacao continua fora do shell para nao ficar deslocada em desktop.
+
+## 2.03 - Preview da Sidebar de Moradia
+
+- Avatares do topo e do perfil agora usam um `character-stage` reutilizavel para a futura sidebar.
+- O fundo do palco do personagem passa a usar a moradia atual do jogador/treinador.
+- Variantes de imagem da moradia sao escolhidas de forma estavel por save para evitar flicker.
+- Mantido placeholder esportivo no personagem, preparando o espaco para o paper-doll da Etapa 18.
+
+## 2.02 - Hotfix de Calendario e Liga de Acesso
+
+- Criada a liga `Brasileirao Acesso` para carreiras iniciais em clubes brasileiros pequenos.
+- Clubes pequenos agora usam apenas times brasileiros de acesso, removendo Lugo, Huesca, Barnsley, Burton Albion e Sandhausen desse fluxo.
+- Saves antigos em clubes de acesso migram para a nova liga e regeneram calendarios contaminados.
+- Calendario e registro de resultados normalizam clubes de base, como `Figueirense (Base)`, para o clube competitivo correto.
+
+## 2.01 - Hotfix de Integridade da Liga
+
+- Tabelas de liga agora saneiam saves/states antigos e removem clubes fora da competicao correta.
+- Registro de resultados passou a rejeitar partidas com clubes que nao pertencem ao state da liga.
+- Configuracao de simulacao global agora destaca visualmente o modo ativo e as ligas selecionadas.
+- Resumo pos-jogo diferencia energia ao apito final da recuperacao aplicada ao voltar para a Home.
+
 ## 2.00 - Fase 15: Database Mundial Base/State
 
 - Criada a estrutura normalizada em `data/` com jogadores por nacionalidade, clubes, staff, ligas, copas e `world_manifest.json`.
